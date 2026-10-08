@@ -1,0 +1,12 @@
+{
+  "appId": "com.aether.geminiapp",
+  "appName": "Aether AI",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "ios": {
+    "contentInset": "automatic",
+    "allowsLinkPreview": false,
+    "scrollEnabled": true,
+    "preferredContentMode": "mobile"
+  }
+}

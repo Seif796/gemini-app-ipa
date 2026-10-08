@@ -1,0 +1,25 @@
+{
+  "name": "aether-gemini-ios-companion",
+  "version": "1.0.0",
+  "description": "24/7 AI Personal Productivity Companion for iPhone with Google Gemini API & .IPA Build Workflow",
+  "scripts": {
+    "install:all": "npm --prefix server install && npm --prefix client install",
+    "start:server": "npm --prefix server start",
+    "dev:server": "npm --prefix server dev",
+    "dev:client": "npm --prefix client dev",
+    "build:client": "npm --prefix client run build",
+    "dev": "node start-dev.js"
+  },
+  "keywords": [
+    "ios",
+    "ipa",
+    "gemini",
+    "ai",
+    "companion",
+    "productivity",
+    "capacitor",
+    "pwa"
+  ],
+  "author": "Antigravity",
+  "license": "MIT"
+}
