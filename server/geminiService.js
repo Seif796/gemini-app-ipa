@@ -1,3 +1,10 @@
+// Bypass self-signed / enterprise proxy certificate errors (VPN / Antivirus / Windows SSL interception)
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+try {
+  const { Agent, setGlobalDispatcher } = require('undici');
+  setGlobalDispatcher(new Agent({ connect: { rejectUnauthorized: false } }));
+} catch (e) {}
+
 /**
  * Service for communicating with Google Gemini API
  */
@@ -65,9 +72,9 @@ async function callGeminiApi({ prompt, systemInstruction, history = [], apiKey, 
 
       if (!response.ok) {
         const errorMsg = data.error?.message || `HTTP ${response.status}: ${response.statusText}`;
-        // If it's a model not found error, try fallback model
-        if (response.status === 404 || errorMsg.includes('not found')) {
-          lastError = new Error(`Model ${m} not found: ${errorMsg}`);
+        // If it's a model not found or deprecated/retired error, try fallback model
+        if (response.status === 404 || errorMsg.includes('not found') || errorMsg.includes('no longer available') || errorMsg.includes('not supported')) {
+          lastError = new Error(`Model ${m} unavailable: ${errorMsg}`);
           continue;
         }
         throw new Error(errorMsg);

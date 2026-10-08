@@ -1,3 +1,12 @@
+// Bypass self-signed / enterprise proxy certificate errors (VPN / Antivirus / Windows SSL interception)
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+try {
+  const { Agent, setGlobalDispatcher } = require('undici');
+  setGlobalDispatcher(new Agent({ connect: { rejectUnauthorized: false } }));
+} catch (e) {
+  // undici optional fallback
+}
+
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
