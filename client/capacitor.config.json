@@ -1,6 +1,6 @@
 {
-  "appId": "com.aether.geminiapp",
-  "appName": "Aether AI",
+  "appId": "com.seif.seifaitest",
+  "appName": "Seif Ai Test",
   "webDir": "dist",
   "bundledWebRuntime": false,
   "ios": {

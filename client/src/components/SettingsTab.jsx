@@ -255,13 +255,13 @@ export default function SettingsTab({ user, onLogout, showToast }) {
               📦 Method 2: Download Native .IPA Package
             </div>
             <p style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '6px' }}>
-              The included GitHub Actions workflow builds a signed/sideloadable <code>Aether-AI.ipa</code> on Apple macOS cloud runners:
+              The included GitHub Actions workflow builds a signed/sideloadable <code>Seif-Ai-Test.ipa</code> on Apple macOS cloud runners:
             </p>
             <ol style={{ fontSize: '12px', color: '#cbd5e1', paddingLeft: '18px', lineHeight: '1.6' }}>
               <li>Push this project to your GitHub repository.</li>
               <li>Go to the <strong>Actions</strong> tab on GitHub.</li>
               <li>Select <strong>"Build iOS .IPA"</strong> and click <strong>Run workflow</strong>.</li>
-              <li>Download the compiled <code>Aether-AI.ipa</code> from GitHub Artifacts!</li>
+              <li>Download the compiled <code>Seif-Ai-Test.ipa</code> from GitHub Artifacts!</li>
               <li>Install via <strong>AltStore</strong>, <strong>SideStore</strong>, <strong>Scarlet</strong>, or <strong>Sideloadly</strong>.</li>
             </ol>
           </div>

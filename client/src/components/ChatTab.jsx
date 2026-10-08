@@ -36,7 +36,7 @@ export default function ChatTab({ showToast }) {
           {
             id: 'welcome',
             role: 'model',
-            content: "👋 Hello! I'm **Aether**, your 24/7 Personal AI Productivity Companion powered by Google Gemini.\n\nHow can I help you today? You can ask me to organize your day, break down challenging tasks, summarize notes, or brainstorm solutions."
+            content: "👋 Hello! I'm **Seif Ai Test**, your 24/7 Personal AI Productivity Companion powered by Google Gemini.\n\nHow can I help you today? You can ask me to organize your day, break down challenging tasks, summarize notes, or brainstorm solutions."
           }
         ]);
       }
@@ -136,7 +136,7 @@ export default function ChatTab({ showToast }) {
             <Sparkles size={18} color="#ffffff" />
           </div>
           <div>
-            <h1 style={{ fontSize: '17px', fontWeight: '700', lineHeight: '1.2' }}>Aether AI</h1>
+            <h1 style={{ fontSize: '17px', fontWeight: '700', lineHeight: '1.2' }}>Seif Ai Test</h1>
             <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
               <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981' }}></span>
               <span style={{ fontSize: '11px', color: '#94a3b8' }}>Gemini Online 24/7</span>
