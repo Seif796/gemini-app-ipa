@@ -2,12 +2,13 @@
  * Service for communicating with Google Gemini API
  */
 const DEFAULT_MODELS = [
-  'gemini-2.0-flash',
-  'gemini-1.5-flash',
-  'gemini-1.5-pro'
+  'gemini-3.8-flash',
+  'gemini-3.8-flash-lite',
+  'gemini-2.5-flash',
+  'gemini-2.0-flash'
 ];
 
-async function callGeminiApi({ prompt, systemInstruction, history = [], apiKey, model = 'gemini-2.0-flash' }) {
+async function callGeminiApi({ prompt, systemInstruction, history = [], apiKey, model = 'gemini-3.8-flash' }) {
   const activeKey = apiKey || process.env.GEMINI_API_KEY;
 
   if (!activeKey) {

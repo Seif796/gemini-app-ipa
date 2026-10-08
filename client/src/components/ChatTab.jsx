@@ -13,7 +13,7 @@ export default function ChatTab({ showToast }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [model, setModel] = useState('gemini-2.0-flash');
+  const [model, setModel] = useState('gemini-3.8-flash');
   const [copiedId, setCopiedId] = useState(null);
   const chatEndRef = useRef(null);
 
@@ -169,9 +169,8 @@ export default function ChatTab({ showToast }) {
                 cursor: 'pointer'
               }}
             >
-              <option value="gemini-2.0-flash" style={{ background: '#13151f' }}>2.0 Flash</option>
-              <option value="gemini-1.5-flash" style={{ background: '#13151f' }}>1.5 Flash</option>
-              <option value="gemini-1.5-pro" style={{ background: '#13151f' }}>1.5 Pro</option>
+              <option value="gemini-3.8-flash" style={{ background: '#13151f' }}>3.8 Flash</option>
+              <option value="gemini-3.8-flash-lite" style={{ background: '#13151f' }}>3.8 Flash Lite</option>
             </select>
           </div>
 

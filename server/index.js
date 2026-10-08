@@ -204,7 +204,7 @@ Keep your responses friendly, concise, elegant, and action-oriented. Format with
       systemInstruction,
       history: history || [],
       apiKey,
-      model: model || 'gemini-2.0-flash'
+      model: model || 'gemini-3.8-flash'
     });
 
     // Save chat interaction to history
@@ -252,7 +252,7 @@ Respond ONLY with valid JSON in this exact structure without markdown backticks:
       prompt,
       systemInstruction: 'You are an expert productivity assistant. Always return pure JSON with no markdown wrapping.',
       apiKey,
-      model: 'gemini-2.0-flash'
+      model: 'gemini-3.8-flash'
     });
 
     let parsed;
@@ -312,7 +312,7 @@ app.post('/api/ai/enhance-note', authenticate, async (req, res) => {
       prompt,
       systemInstruction: 'You are an executive note editor and productivity strategist.',
       apiKey,
-      model: 'gemini-2.0-flash'
+      model: 'gemini-3.8-flash'
     });
 
     res.json({
