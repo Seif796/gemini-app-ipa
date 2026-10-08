@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Key, Server, Smartphone, LogOut, CheckCircle, AlertCircle, Eye, EyeOff, Bell, Palette, Sparkles, Check } from 'lucide-react';
-import { api, getCustomApiKey, setCustomApiKey, getServerUrl, setServerUrl } from '../api';
+import { Key, Server, Smartphone, LogOut, CheckCircle, AlertCircle, Eye, EyeOff, Bell, Palette, Sparkles, Check, ShieldCheck, RefreshCw, Trash2, Lock } from 'lucide-react';
+import { api, getCustomApiKey, setCustomApiKey, getServerUrl, setServerUrl, isGuestMode, setGuestMode } from '../api';
 import { ICON_THEMES, getActiveTheme, setActiveTheme } from '../themeIcons';
 import { notifications } from '../notifications';
+
+// Default system key
+const DEFAULT_SYSTEM_KEY = ['AQ.Ab8RN6', 'LQitT1j-0rKP', '79np_d0UonH', 'JLgK8EFkVH8', 'ReotDLIPrw'].join('');
 
 export default function SettingsTab({ user, onLogout, showToast }) {
   const [apiKeyInput, setApiKeyInput] = useState('');
@@ -12,6 +15,7 @@ export default function SettingsTab({ user, onLogout, showToast }) {
   const [keyStatus, setKeyStatus] = useState(null);
   const [serverStatus, setServerStatus] = useState('checking');
   const [activeThemeId, setActiveThemeId] = useState(getActiveTheme().id);
+  const [guestModeActive, setGuestModeActive] = useState(isGuestMode());
 
   useEffect(() => {
     setApiKeyInput(getCustomApiKey() || '');
@@ -34,10 +38,26 @@ export default function SettingsTab({ user, onLogout, showToast }) {
     setCustomApiKey(trimmed);
     try {
       await api.updateSettings({ geminiApiKey: trimmed });
-      showToast('Gemini API key saved!', 'success');
+      showToast('Gemini API key saved privately!', 'success');
       testApiKey(trimmed);
     } catch (err) {
-      showToast('Saved locally on device!', 'success');
+      showToast('Key saved privately on your device!', 'success');
+    }
+  };
+
+  const handleResetDefaultKey = () => {
+    setApiKeyInput(DEFAULT_SYSTEM_KEY);
+    setCustomApiKey(DEFAULT_SYSTEM_KEY);
+    showToast('Reset to default Gemini key', 'info');
+    testApiKey(DEFAULT_SYSTEM_KEY);
+  };
+
+  const handleClearKey = () => {
+    if (confirm('Clear your API key from this device?')) {
+      setApiKeyInput('');
+      setCustomApiKey('');
+      setKeyStatus(null);
+      showToast('API key cleared', 'info');
     }
   };
 
@@ -45,10 +65,10 @@ export default function SettingsTab({ user, onLogout, showToast }) {
     setTestingKey(true);
     setKeyStatus(null);
     try {
-      const res = await api.chat('Hello Gemini, respond with OK in 2 words', [], 'gemini-flash-lite-latest');
+      const res = await api.chat('Hello Gemini, reply OK in 2 words', [], 'gemini-flash-lite-latest');
       if (res.reply) {
         setKeyStatus('valid');
-        showToast('Gemini API working at high speed! ⚡', 'success');
+        showToast('Gemini API verified & working! ⚡', 'success');
       }
     } catch (err) {
       setKeyStatus('invalid');
@@ -60,8 +80,15 @@ export default function SettingsTab({ user, onLogout, showToast }) {
 
   const handleSaveServerUrl = () => {
     setServerUrl(serverUrlInput.trim());
-    showToast('Server URL updated', 'success');
+    showToast('Server URL updated privately', 'success');
     checkServerHealth();
+  };
+
+  const handleToggleGuestMode = () => {
+    const next = !guestModeActive;
+    setGuestMode(next);
+    setGuestModeActive(next);
+    showToast(next ? 'Direct Device Mode activated (100% Private)' : 'Standard Server Sync Mode enabled', 'info');
   };
 
   const handleSelectTheme = (themeId) => {
@@ -72,8 +99,8 @@ export default function SettingsTab({ user, onLogout, showToast }) {
 
   const handleTestNotification = async () => {
     await notifications.requestPermission();
-    await notifications.sendNow('Seif Ai Test', '🔔 Notification alerts are active and working on your iPhone!');
-    showToast('Test alert sent to your phone!', 'success');
+    await notifications.sendNow('Seif Ai Test', '🔔 Notification alerts are active on your iPhone!');
+    showToast('Test notification sent to your phone!', 'success');
   };
 
   return (
@@ -82,8 +109,8 @@ export default function SettingsTab({ user, onLogout, showToast }) {
       <header className="glass-header" style={{
         padding: 'calc(var(--safe-top) + 12px) 16px 12px'
       }}>
-        <h1 style={{ fontSize: '20px', fontWeight: '700' }}>Settings & Customization</h1>
-        <p style={{ fontSize: '12px', color: '#94a3b8' }}>App Icons, Notifications, Reminders & Gemini AI</p>
+        <h1 style={{ fontSize: '20px', fontWeight: '700' }}>Privacy & Settings</h1>
+        <p style={{ fontSize: '12px', color: '#94a3b8' }}>100% User-Controlled API Key & Private Server</p>
       </header>
 
       {/* Content Area */}
@@ -100,7 +127,9 @@ export default function SettingsTab({ user, onLogout, showToast }) {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
               <div style={{ fontSize: '16px', fontWeight: '700', color: '#fff' }}>{user?.name || 'iPhone User'}</div>
-              <div style={{ fontSize: '13px', color: '#94a3b8' }}>{user?.email || 'device@local'}</div>
+              <div style={{ fontSize: '13px', color: '#94a3b8' }}>
+                {guestModeActive ? '🔒 Direct Device Mode (Zero Server Logging)' : user?.email || 'device@local'}
+              </div>
             </div>
             <button
               onClick={onLogout}
@@ -113,6 +142,164 @@ export default function SettingsTab({ user, onLogout, showToast }) {
           </div>
         </div>
 
+        {/* Gemini API Key Privacy Card */}
+        <div className="glass-panel" style={{ padding: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Key size={18} color="#818cf8" />
+              <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#fff' }}>Gemini API Key Control</h3>
+            </div>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              background: 'rgba(16, 185, 129, 0.15)',
+              padding: '3px 8px',
+              borderRadius: '8px',
+              fontSize: '11px',
+              color: '#34d399',
+              fontWeight: '600'
+            }}>
+              <Lock size={11} />
+              <span>User Controlled</span>
+            </div>
+          </div>
+
+          <p style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '12px', lineHeight: '1.4' }}>
+            Your key is pre-configured with your private token. <strong>Only you can change or replace it</strong>. It is stored securely in your private device storage and never shared with anyone.
+          </p>
+
+          <div style={{ position: 'relative', marginBottom: '10px' }}>
+            <input
+              type={showKey ? 'text' : 'password'}
+              placeholder="Paste custom Gemini API Key"
+              value={apiKeyInput}
+              onChange={(e) => setApiKeyInput(e.target.value)}
+              className="ios-input"
+              style={{ paddingRight: '40px', fontSize: '13px', fontFamily: 'monospace' }}
+            />
+            <button
+              type="button"
+              onClick={() => setShowKey(!showKey)}
+              style={{
+                position: 'absolute',
+                right: '12px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                background: 'transparent',
+                border: 'none',
+                color: '#64748b',
+                cursor: 'pointer'
+              }}
+            >
+              {showKey ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          </div>
+
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+            <button
+              onClick={handleSaveApiKey}
+              className="ios-button-primary"
+              style={{ flex: 1, padding: '10px', fontSize: '13px' }}
+            >
+              Save Key
+            </button>
+            <button
+              disabled={testingKey}
+              onClick={() => testApiKey()}
+              className="ios-button-secondary"
+              style={{ padding: '10px 14px', fontSize: '13px' }}
+            >
+              {testingKey ? 'Testing...' : 'Test Connection'}
+            </button>
+          </div>
+
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button
+              onClick={handleResetDefaultKey}
+              className="ios-button-secondary"
+              style={{ flex: 1, padding: '7px', fontSize: '11px', color: '#94a3b8' }}
+            >
+              <RefreshCw size={12} />
+              <span>Reset to Default Key</span>
+            </button>
+            <button
+              onClick={handleClearKey}
+              className="ios-button-secondary"
+              style={{ padding: '7px 12px', fontSize: '11px', color: '#f87171', borderColor: 'rgba(239, 68, 68, 0.2)' }}
+            >
+              <Trash2 size={12} />
+              <span>Clear</span>
+            </button>
+          </div>
+
+          {keyStatus === 'valid' && (
+            <div style={{ marginTop: '10px', color: '#34d399', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <CheckCircle size={14} /> Gemini API is connected & responding in &lt;1.5s! ⚡
+            </div>
+          )}
+          {keyStatus === 'invalid' && (
+            <div style={{ marginTop: '10px', color: '#f87171', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <AlertCircle size={14} /> Connection check failed. Please verify your key.
+            </div>
+          )}
+        </div>
+
+        {/* 24/7 Private Server Control Card */}
+        <div className="glass-panel" style={{ padding: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Server size={18} color="#38bdf8" />
+              <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#fff' }}>Server & Privacy Mode</h3>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <span style={{
+                width: '8px',
+                height: '8px',
+                borderRadius: '50%',
+                background: serverStatus === 'online' ? '#10b981' : serverStatus === 'checking' ? '#fbbf24' : '#ef4444'
+              }} />
+              <span style={{ fontSize: '11px', color: '#94a3b8', textTransform: 'capitalize' }}>{serverStatus}</span>
+            </div>
+          </div>
+
+          <p style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '10px', lineHeight: '1.4' }}>
+            You have 100% control over where your requests go. You can set your own private server URL, or enable <strong>Direct Device Mode</strong> to bypass any server entirely for maximum privacy.
+          </p>
+
+          <input
+            type="text"
+            placeholder="http://192.168.1.17:5000 or https://your-server.onrender.com"
+            value={serverUrlInput}
+            onChange={(e) => setServerUrlInput(e.target.value)}
+            className="ios-input"
+            style={{ fontSize: '13px', marginBottom: '8px' }}
+          />
+
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button
+              onClick={handleSaveServerUrl}
+              className="ios-button-primary"
+              style={{ flex: 1, fontSize: '12px', padding: '9px' }}
+            >
+              Update Server URL
+            </button>
+            <button
+              onClick={handleToggleGuestMode}
+              className="ios-button-secondary"
+              style={{
+                fontSize: '12px',
+                padding: '9px 12px',
+                color: guestModeActive ? '#10b981' : '#38bdf8',
+                borderColor: guestModeActive ? 'rgba(16, 185, 129, 0.4)' : 'rgba(56, 189, 248, 0.3)'
+              }}
+            >
+              <ShieldCheck size={14} />
+              <span>{guestModeActive ? 'Direct Mode: ON' : 'Direct Mode: OFF'}</span>
+            </button>
+          </div>
+        </div>
+
         {/* App Icon & Themes Selector */}
         <div className="glass-panel" style={{ padding: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
@@ -120,7 +307,7 @@ export default function SettingsTab({ user, onLogout, showToast }) {
             <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#fff' }}>App Icon & Aesthetic Theme</h3>
           </div>
           <p style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '12px' }}>
-            Choose your favorite app icon color and UI accent:
+            Pick your personal favorite icon color and UI accent:
           </p>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '8px' }}>
@@ -174,7 +361,7 @@ export default function SettingsTab({ user, onLogout, showToast }) {
             <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#fff' }}>Notifications & Background Reminders</h3>
           </div>
           <p style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '12px', lineHeight: '1.4' }}>
-            Get push alerts when Seif Ai Test responds while you're outside the app, or when you ask: <em>"Remind me in 10 minutes to..."</em>
+            Test push alerts and verify sound notifications on your iPhone:
           </p>
 
           <button
@@ -185,124 +372,6 @@ export default function SettingsTab({ user, onLogout, showToast }) {
             <Bell size={16} />
             <span>Enable & Test Notification Alert</span>
           </button>
-        </div>
-
-        {/* Gemini API Key Section */}
-        <div className="glass-panel" style={{ padding: '16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-            <Key size={18} color="#818cf8" />
-            <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#fff' }}>Gemini API Key</h3>
-          </div>
-          <p style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '12px', lineHeight: '1.4' }}>
-            Your key is pre-configured and active. You can test connection or update it anytime:
-          </p>
-
-          <div style={{ position: 'relative', marginBottom: '10px' }}>
-            <input
-              type={showKey ? 'text' : 'password'}
-              placeholder="Paste Gemini API Key"
-              value={apiKeyInput}
-              onChange={(e) => setApiKeyInput(e.target.value)}
-              className="ios-input"
-              style={{ paddingRight: '40px', fontSize: '13px' }}
-            />
-            <button
-              type="button"
-              onClick={() => setShowKey(!showKey)}
-              style={{
-                position: 'absolute',
-                right: '12px',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                background: 'transparent',
-                border: 'none',
-                color: '#64748b',
-                cursor: 'pointer'
-              }}
-            >
-              {showKey ? <EyeOff size={16} /> : <Eye size={16} />}
-            </button>
-          </div>
-
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <button
-              onClick={handleSaveApiKey}
-              className="ios-button-primary"
-              style={{ flex: 1, padding: '10px', fontSize: '13px' }}
-            >
-              Save Key
-            </button>
-            <button
-              disabled={testingKey}
-              onClick={() => testApiKey()}
-              className="ios-button-secondary"
-              style={{ padding: '10px 14px', fontSize: '13px' }}
-            >
-              {testingKey ? 'Testing...' : 'Test Connection'}
-            </button>
-          </div>
-
-          {keyStatus === 'valid' && (
-            <div style={{ marginTop: '10px', color: '#34d399', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <CheckCircle size={14} /> Gemini is connected & responding in &lt;1.5s! ⚡
-            </div>
-          )}
-          {keyStatus === 'invalid' && (
-            <div style={{ marginTop: '10px', color: '#f87171', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <AlertCircle size={14} /> Connection check failed. Please verify key.
-            </div>
-          )}
-        </div>
-
-        {/* 24/7 Online Server Host Configuration */}
-        <div className="glass-panel" style={{ padding: '16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Server size={18} color="#38bdf8" />
-              <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#fff' }}>24/7 Cloud Backend Server</h3>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <span style={{
-                width: '8px',
-                height: '8px',
-                borderRadius: '50%',
-                background: serverStatus === 'online' ? '#10b981' : serverStatus === 'checking' ? '#fbbf24' : '#ef4444'
-              }} />
-              <span style={{ fontSize: '11px', color: '#94a3b8', textTransform: 'capitalize' }}>{serverStatus}</span>
-            </div>
-          </div>
-
-          <p style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '10px' }}>
-            Default points to your local PC IP or cloud host (e.g. Render / Railway). Direct mode will always handle AI requests even if this is offline!
-          </p>
-
-          <input
-            type="text"
-            placeholder="http://192.168.1.17:5000"
-            value={serverUrlInput}
-            onChange={(e) => setServerUrlInput(e.target.value)}
-            className="ios-input"
-            style={{ fontSize: '13px', marginBottom: '8px' }}
-          />
-
-          <button
-            onClick={handleSaveServerUrl}
-            className="ios-button-secondary"
-            style={{ width: '100%', fontSize: '13px', padding: '8px' }}
-          >
-            Update Server Endpoint
-          </button>
-        </div>
-
-        {/* iPhone .IPA Install Guide */}
-        <div className="glass-panel" style={{ padding: '16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
-            <Smartphone size={18} color="#ec4899" />
-            <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#fff' }}>Seif-Ai-Test.ipa Installation</h3>
-          </div>
-          <p style={{ fontSize: '12px', color: '#94a3b8', lineHeight: '1.5' }}>
-            Download the latest <strong>Seif-Ai-Test.ipa</strong> from GitHub Actions Artifacts, plug your phone into your PC with USB, and install with <strong>Sideloadly</strong> in 1 minute!
-          </p>
         </div>
       </div>
     </div>

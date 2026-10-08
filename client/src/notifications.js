@@ -94,3 +94,4 @@ class NotificationService {
 }
 
 export const notifications = new NotificationService();
+

@@ -58,3 +58,4 @@ export function setActiveTheme(themeId) {
   window.dispatchEvent(new CustomEvent('seif-theme-changed', { detail: theme }));
   return theme;
 }
+
