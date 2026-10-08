@@ -6,26 +6,38 @@ try {
 } catch (e) {}
 
 /**
- * Service for communicating with Google Gemini API
+ * High-speed active Gemini models (Sub-1s latency)
  */
 const DEFAULT_MODELS = [
-  'gemini-3.8-flash',
-  'gemini-3.8-flash-lite',
-  'gemini-2.5-flash',
-  'gemini-2.0-flash'
+  'gemini-flash-lite-latest',
+  'gemini-3.5-flash-lite',
+  'gemini-3.8-flash'
 ];
 
-async function callGeminiApi({ prompt, systemInstruction, history = [], apiKey, model = 'gemini-3.8-flash' }) {
+/**
+ * Automatically maps any outdated/retired model to the lightning-fast active model
+ */
+function normalizeModel(model) {
+  if (!model) return 'gemini-flash-lite-latest';
+  const m = String(model).toLowerCase();
+  if (m.includes('2.0') || m.includes('1.5') || m.includes('2.5') || m.includes('flash-pro')) {
+    return 'gemini-flash-lite-latest';
+  }
+  return model;
+}
+
+async function callGeminiApi({ prompt, systemInstruction, history = [], apiKey, model = 'gemini-flash-lite-latest' }) {
   const activeKey = apiKey || process.env.GEMINI_API_KEY;
 
   if (!activeKey) {
     throw new Error('Gemini API key is not configured. Please provide it in Settings or set GEMINI_API_KEY in the server .env');
   }
 
+  const safeModel = normalizeModel(model);
+
   // Build contents array supporting conversational history
   const contents = [];
 
-  // Add history messages
   if (Array.isArray(history) && history.length > 0) {
     for (const h of history) {
       contents.push({
@@ -45,7 +57,8 @@ async function callGeminiApi({ prompt, systemInstruction, history = [], apiKey, 
     contents,
     generationConfig: {
       temperature: 0.7,
-      maxOutputTokens: 2048,
+      maxOutputTokens: 1024,
+      topP: 0.95
     }
   };
 
@@ -55,8 +68,8 @@ async function callGeminiApi({ prompt, systemInstruction, history = [], apiKey, 
     };
   }
 
-  // Try requested model first, then fallback to other standard models if model not found
-  const modelsToTry = [model, ...DEFAULT_MODELS.filter(m => m !== model)];
+  // Cycle through active high-speed models
+  const modelsToTry = [safeModel, ...DEFAULT_MODELS.filter(m => m !== safeModel)];
   let lastError = null;
 
   for (const m of modelsToTry) {
@@ -72,7 +85,6 @@ async function callGeminiApi({ prompt, systemInstruction, history = [], apiKey, 
 
       if (!response.ok) {
         const errorMsg = data.error?.message || `HTTP ${response.status}: ${response.statusText}`;
-        // If it's a model not found or deprecated/retired error, try fallback model
         if (response.status === 404 || errorMsg.includes('not found') || errorMsg.includes('no longer available') || errorMsg.includes('not supported')) {
           lastError = new Error(`Model ${m} unavailable: ${errorMsg}`);
           continue;
@@ -89,7 +101,6 @@ async function callGeminiApi({ prompt, systemInstruction, history = [], apiKey, 
       };
     } catch (err) {
       lastError = err;
-      // If error is an auth failure or bad request, don't keep cycling models
       if (err.message && (err.message.includes('API_KEY_INVALID') || err.message.includes('quota'))) {
         throw err;
       }
@@ -100,5 +111,6 @@ async function callGeminiApi({ prompt, systemInstruction, history = [], apiKey, 
 }
 
 module.exports = {
-  callGeminiApi
+  callGeminiApi,
+  normalizeModel
 };

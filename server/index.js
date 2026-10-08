@@ -1,5 +1,11 @@
 // Bypass self-signed / enterprise proxy certificate errors (VPN / Antivirus / Windows SSL interception)
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+const originalEmitWarning = process.emitWarning;
+process.emitWarning = (warning, ...args) => {
+  if (typeof warning === 'string' && warning.includes('NODE_TLS_REJECT_UNAUTHORIZED')) return;
+  return originalEmitWarning.call(process, warning, ...args);
+};
+
 try {
   const { Agent, setGlobalDispatcher } = require('undici');
   setGlobalDispatcher(new Agent({ connect: { rejectUnauthorized: false } }));
@@ -213,7 +219,7 @@ Keep your responses friendly, concise, elegant, and action-oriented. Format with
       systemInstruction,
       history: history || [],
       apiKey,
-      model: model || 'gemini-3.8-flash'
+      model: model || 'gemini-flash-lite-latest'
     });
 
     // Save chat interaction to history
@@ -261,7 +267,7 @@ Respond ONLY with valid JSON in this exact structure without markdown backticks:
       prompt,
       systemInstruction: 'You are an expert productivity assistant. Always return pure JSON with no markdown wrapping.',
       apiKey,
-      model: 'gemini-3.8-flash'
+      model: 'gemini-flash-lite-latest'
     });
 
     let parsed;
@@ -321,7 +327,7 @@ app.post('/api/ai/enhance-note', authenticate, async (req, res) => {
       prompt,
       systemInstruction: 'You are an executive note editor and productivity strategist.',
       apiKey,
-      model: 'gemini-3.8-flash'
+      model: 'gemini-flash-lite-latest'
     });
 
     res.json({
