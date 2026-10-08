@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Sparkles, Trash2, Copy, Check, Bot, User, Cpu } from 'lucide-react';
+import { Send, Sparkles, Trash2, Copy, Check, Bot, Bell, Clock, Cpu } from 'lucide-react';
 import { api } from '../api';
+import { notifications } from '../notifications';
+import { getActiveTheme } from '../themeIcons';
 
 const QUICK_PROMPTS = [
+  '⏰ Remind me in 10 minutes to take a break',
   '☀️ Plan my morning schedule',
-  '🎯 Help me prioritize 3 goals today',
-  '📝 Draft a polite professional email',
+  '🎯 Prioritize my 3 top goals today',
   '💡 Brainstorm 5 productivity habits'
 ];
 
@@ -15,10 +17,18 @@ export default function ChatTab({ showToast }) {
   const [loading, setLoading] = useState(false);
   const [model, setModel] = useState('gemini-flash-lite-latest');
   const [copiedId, setCopiedId] = useState(null);
+  const [theme, setTheme] = useState(getActiveTheme());
   const chatEndRef = useRef(null);
 
   useEffect(() => {
     loadChatHistory();
+    notifications.init();
+
+    const handleThemeChange = (e) => {
+      if (e.detail) setTheme(e.detail);
+    };
+    window.addEventListener('seif-theme-changed', handleThemeChange);
+    return () => window.removeEventListener('seif-theme-changed', handleThemeChange);
   }, []);
 
   useEffect(() => {
@@ -31,12 +41,11 @@ export default function ChatTab({ showToast }) {
       if (res.chats && res.chats.length > 0) {
         setMessages(res.chats);
       } else {
-        // Default welcoming message
         setMessages([
           {
             id: 'welcome',
             role: 'model',
-            content: "👋 Hello! I'm **Seif Ai Test**, your 24/7 Personal AI Productivity Companion powered by Google Gemini.\n\nHow can I help you today? You can ask me to organize your day, break down challenging tasks, summarize notes, or brainstorm solutions."
+            content: "👋 Hello! I'm **Seif Ai Test**, your ultra-fast 24/7 AI Companion.\n\nTell me anything: ask questions, break down goals, or say **\"Remind me in 5 minutes to...\"** and I will set real alerts for you!"
           }
         ]);
       }
@@ -49,6 +58,9 @@ export default function ChatTab({ showToast }) {
     const text = textToSend || input;
     if (!text.trim() || loading) return;
 
+    // Ask notification permission on first interaction
+    notifications.requestPermission().catch(() => {});
+
     const userMsg = {
       id: 'usr_' + Date.now(),
       role: 'user',
@@ -56,30 +68,59 @@ export default function ChatTab({ showToast }) {
     };
 
     setMessages((prev) => [...prev, userMsg]);
+    api.saveChatMessage(userMsg);
     setInput('');
     setLoading(true);
 
     try {
-      // Build conversation history excluding errors & welcome
       const history = messages
         .filter((m) => m.id !== 'welcome')
         .map((m) => ({ role: m.role, content: m.content }));
 
       const res = await api.chat(text.trim(), history, model);
 
+      let cleanContent = res.reply;
+
+      // Detect & process AI Reminders
+      const reminderMatch = res.reply.match(/\[REMINDER:\s*(\d+)\s*\|\s*(.*?)\]/i);
+      if (reminderMatch) {
+        const delaySeconds = parseInt(reminderMatch[1], 10) || 60;
+        const reminderText = reminderMatch[2].trim();
+        cleanContent = res.reply.replace(/\[REMINDER:.*?\]/i, '').trim();
+
+        // Schedule notification & task
+        await notifications.scheduleReminder(reminderText, delaySeconds);
+        await api.saveTask({
+          title: `⏰ Reminder: ${reminderText}`,
+          description: `Scheduled alert set for ${new Date(Date.now() + delaySeconds * 1000).toLocaleTimeString()}`,
+          priority: 'high',
+          completed: false
+        });
+
+        const mins = Math.max(1, Math.round(delaySeconds / 60));
+        showToast(`⏰ Reminder set for ${mins} min from now!`, 'success');
+      }
+
+      // If user is currently in another tab or app, send a notification alert!
+      if (document.hidden) {
+        const preview = cleanContent.length > 90 ? cleanContent.substring(0, 90) + '...' : cleanContent;
+        notifications.sendNow('Seif Ai Test', preview);
+      }
+
       const aiMsg = {
         id: 'ai_' + Date.now(),
         role: 'model',
-        content: res.reply,
+        content: cleanContent,
         model: res.model
       };
 
       setMessages((prev) => [...prev, aiMsg]);
+      api.saveChatMessage(aiMsg);
     } catch (err) {
       const errorMsg = {
         id: 'err_' + Date.now(),
         role: 'model',
-        content: `⚠️ **Error:** ${err.message || 'Failed to connect to Gemini API.'}\n\n*Tip: Check that your Gemini API key is configured in the Settings tab!*`
+        content: `⚠️ **Notice:** ${err.message || 'Connecting to Gemini...'}\n\nPlease check your internet connection or verify your API key in Settings.`
       };
       setMessages((prev) => [...prev, errorMsg]);
       showToast(err.message, 'error');
@@ -96,7 +137,7 @@ export default function ChatTab({ showToast }) {
           {
             id: 'welcome_reset',
             role: 'model',
-            content: "Chat cleared! What would you like to work on next?"
+            content: "Chat cleared! How can I help you next?"
           }
         ]);
         showToast('Chat history cleared', 'success');
@@ -124,55 +165,45 @@ export default function ChatTab({ showToast }) {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <div style={{
-            width: '36px',
-            height: '36px',
-            borderRadius: '12px',
-            background: 'linear-gradient(135deg, #38bdf8, #818cf8)',
+            width: '38px',
+            height: '38px',
+            borderRadius: '13px',
+            background: theme.gradient,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: '0 4px 12px rgba(56, 189, 248, 0.3)'
+            boxShadow: `0 4px 15px ${theme.glow}`,
+            transition: 'all 0.3s ease'
           }}>
-            <Sparkles size={18} color="#ffffff" />
+            <Sparkles size={20} color="#ffffff" />
           </div>
           <div>
-            <h1 style={{ fontSize: '17px', fontWeight: '700', lineHeight: '1.2' }}>Seif Ai Test</h1>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <h1 style={{ fontSize: '17px', fontWeight: '700', lineHeight: '1.2' }}>Seif Ai Test</h1>
+              <span style={{ fontSize: '12px' }}>{theme.badge}</span>
+            </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
               <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981' }}></span>
-              <span style={{ fontSize: '11px', color: '#94a3b8' }}>Gemini Online 24/7</span>
+              <span style={{ fontSize: '11px', color: '#94a3b8' }}>Gemini Online 24/7 • Reminders Ready</span>
             </div>
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          {/* Model selector pill */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px',
-            background: 'rgba(255, 255, 255, 0.06)',
-            padding: '4px 8px',
-            borderRadius: '10px',
-            fontSize: '11px',
-            color: '#cbd5e1'
-          }}>
-            <Cpu size={12} color="#38bdf8" />
-            <select
-              value={model}
-              onChange={(e) => setModel(e.target.value)}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                color: '#cbd5e1',
-                fontSize: '11px',
-                outline: 'none',
-                cursor: 'pointer'
-              }}
-            >
-              <option value="gemini-flash-lite-latest" style={{ background: '#13151f' }}>⚡ Fast Lite (0.5s)</option>
-              <option value="gemini-3.8-flash" style={{ background: '#13151f' }}>3.8 Flash</option>
-            </select>
-          </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <button
+            onClick={() => notifications.requestPermission().then(() => showToast('Notifications enabled! 🔔', 'success'))}
+            title="Enable Notifications"
+            style={{
+              background: 'rgba(255, 255, 255, 0.06)',
+              border: 'none',
+              borderRadius: '10px',
+              padding: '7px',
+              cursor: 'pointer',
+              color: '#38bdf8'
+            }}
+          >
+            <Bell size={16} />
+          </button>
 
           <button
             onClick={handleClearHistory}
@@ -224,30 +255,22 @@ export default function ChatTab({ showToast }) {
                   flexShrink: 0,
                   marginTop: '2px'
                 }}>
-                  <Bot size={16} color="#818cf8" />
+                  <Bot size={16} color={theme.primary} />
                 </div>
               )}
 
-              <div style={{
-                maxWidth: '82%',
-                position: 'relative',
-                group: 'message-bubble'
-              }}>
+              <div style={{ maxWidth: '82%', position: 'relative' }}>
                 <div
                   className="selectable-text"
                   style={{
                     padding: '12px 16px',
                     borderRadius: isUser ? '20px 20px 4px 20px' : '20px 20px 20px 4px',
-                    background: isUser
-                      ? 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)'
-                      : 'rgba(26, 30, 46, 0.85)',
+                    background: isUser ? theme.gradient : 'rgba(26, 30, 46, 0.85)',
                     color: '#ffffff',
                     fontSize: '14px',
                     lineHeight: '1.5',
                     border: isUser ? 'none' : '1px solid rgba(255, 255, 255, 0.08)',
-                    boxShadow: isUser
-                      ? '0 4px 15px rgba(79, 70, 229, 0.25)'
-                      : '0 2px 10px rgba(0, 0, 0, 0.2)',
+                    boxShadow: isUser ? `0 4px 15px ${theme.glow}` : '0 2px 10px rgba(0, 0, 0, 0.2)',
                     whiteSpace: 'pre-wrap',
                     wordBreak: 'break-word'
                   }}
@@ -256,13 +279,7 @@ export default function ChatTab({ showToast }) {
                 </div>
 
                 {!isUser && (
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    marginTop: '4px',
-                    paddingLeft: '4px'
-                  }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px', paddingLeft: '4px' }}>
                     <button
                       onClick={() => copyToClipboard(msg.id, msg.content)}
                       style={{
@@ -281,7 +298,7 @@ export default function ChatTab({ showToast }) {
                       <span>{copiedId === msg.id ? 'Copied' : 'Copy'}</span>
                     </button>
                     {msg.model && (
-                      <span style={{ fontSize: '10px', color: '#64748b' }}>• {msg.model}</span>
+                      <span style={{ fontSize: '10px', color: '#64748b' }}>• ⚡ Fast AI</span>
                     )}
                   </div>
                 )}
@@ -301,7 +318,7 @@ export default function ChatTab({ showToast }) {
               alignItems: 'center',
               justifyContent: 'center'
             }}>
-              <Bot size={16} color="#818cf8" />
+              <Bot size={16} color={theme.primary} />
             </div>
             <div style={{
               padding: '10px 16px',
@@ -311,7 +328,7 @@ export default function ChatTab({ showToast }) {
               gap: '6px',
               alignItems: 'center'
             }}>
-              <span className="typing-dot" style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#38bdf8', animation: 'pulse 1s infinite alternate' }}></span>
+              <span className="typing-dot" style={{ width: '6px', height: '6px', borderRadius: '50%', background: theme.primary, animation: 'pulse 1s infinite alternate' }}></span>
               <span className="typing-dot" style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#818cf8', animation: 'pulse 1s 0.2s infinite alternate' }}></span>
               <span className="typing-dot" style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#c084fc', animation: 'pulse 1s 0.4s infinite alternate' }}></span>
             </div>
@@ -355,7 +372,7 @@ export default function ChatTab({ showToast }) {
       {/* Input Dock */}
       <div style={{
         padding: '8px 16px calc(var(--safe-bottom) + 64px) 16px',
-        background: 'rgba(9, 10, 15, 0.9)',
+        background: 'rgba(9, 10, 15, 0.92)',
         borderTop: '1px solid rgba(255, 255, 255, 0.06)'
       }}>
         <form
@@ -372,7 +389,7 @@ export default function ChatTab({ showToast }) {
         >
           <input
             type="text"
-            placeholder="Ask Aether anything..."
+            placeholder="Ask Seif Ai Test or say 'Remind me in 5m to...'"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             disabled={loading}
@@ -389,15 +406,16 @@ export default function ChatTab({ showToast }) {
             type="submit"
             disabled={!input.trim() || loading}
             style={{
-              width: '36px',
-              height: '36px',
+              width: '38px',
+              height: '38px',
               borderRadius: '50%',
-              background: input.trim() ? 'linear-gradient(135deg, #38bdf8, #818cf8)' : 'rgba(255, 255, 255, 0.1)',
+              background: input.trim() ? theme.gradient : 'rgba(255, 255, 255, 0.1)',
               border: 'none',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               cursor: input.trim() ? 'pointer' : 'default',
+              boxShadow: input.trim() ? `0 2px 10px ${theme.glow}` : 'none',
               transition: 'all 0.2s'
             }}
           >

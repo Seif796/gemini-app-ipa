@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { api, getToken, setToken } from './api';
+import { api, getToken, setToken, isGuestMode } from './api';
+import { getActiveTheme, setActiveTheme } from './themeIcons';
 import TabBar from './components/TabBar';
 import ChatTab from './components/ChatTab';
 import NotesTab from './components/NotesTab';
@@ -14,6 +15,7 @@ export default function App() {
   const [toast, setToast] = useState(null); // { message, type }
 
   useEffect(() => {
+    setActiveTheme(getActiveTheme().id);
     checkInitialAuth();
   }, []);
 
