@@ -53,6 +53,26 @@ export function getFocusState() {
   }
 }
 
+const CUSTOM_APPS_KEY = 'seif_custom_user_apps';
+
+export function getUserCustomApps() {
+  try {
+    const raw = localStorage.getItem(CUSTOM_APPS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+export function saveUserCustomApps(apps) {
+  try {
+    localStorage.setItem(CUSTOM_APPS_KEY, JSON.stringify(apps));
+    window.dispatchEvent(new CustomEvent('seif-custom-apps-updated', { detail: apps }));
+  } catch (e) {
+    console.error('Error saving custom apps:', e);
+  }
+}
+
 export function saveFocusState(state) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));

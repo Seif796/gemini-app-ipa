@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { ShieldAlert, BookOpen, Clock, Play, Square, Check, AlertCircle, Sparkles, Lock, ArrowRight } from 'lucide-react';
-import { POPULAR_DISTRACTING_APPS, getFocusState, saveFocusState } from '../focusBlocker';
+import { ShieldAlert, BookOpen, Clock, Play, Square, Check, AlertCircle, Sparkles, Lock, ArrowRight, Plus, Trash2, Smartphone, ShieldCheck, ExternalLink } from 'lucide-react';
+import { POPULAR_DISTRACTING_APPS, getFocusState, saveFocusState, getUserCustomApps, saveUserCustomApps } from '../focusBlocker';
 import { notifications } from '../notifications';
 
 export default function FocusBlockerTab({ showToast }) {
@@ -8,6 +8,9 @@ export default function FocusBlockerTab({ showToast }) {
   const [selectedDuration, setSelectedDuration] = useState(25);
   const [blockedApps, setBlockedApps] = useState(focusState.blockedAppIds);
   const [sessionGoal, setSessionGoal] = useState(focusState.sessionGoal);
+  const [customApps, setCustomApps] = useState(getUserCustomApps());
+  const [newAppName, setNewAppName] = useState('');
+  const [showAddModal, setShowAddModal] = useState(false);
 
   useEffect(() => {
     const handleFocusChange = (e) => {
@@ -54,6 +57,36 @@ export default function FocusBlockerTab({ showToast }) {
 
     return () => clearInterval(timer);
   }, [focusState.isActive]);
+
+  const handleAddCustomApp = (e) => {
+    e?.preventDefault();
+    if (!newAppName.trim()) return;
+    const cleanId = newAppName.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+    const newApp = {
+      id: cleanId,
+      name: newAppName.trim(),
+      icon: '📱',
+      category: 'Custom App',
+      color: '#38bdf8'
+    };
+    const updated = [...customApps, newApp];
+    setCustomApps(updated);
+    saveUserCustomApps(updated);
+    setBlockedApps((prev) => [...prev, cleanId]);
+    setNewAppName('');
+    setShowAddModal(false);
+    showToast(`Added "${newApp.name}" to blocked apps list! 🔒`, 'success');
+  };
+
+  const handleDeleteCustomApp = (appId) => {
+    const updated = customApps.filter((a) => a.id !== appId);
+    setCustomApps(updated);
+    saveUserCustomApps(updated);
+    setBlockedApps((prev) => prev.filter((id) => id !== appId));
+    showToast('App removed from list', 'info');
+  };
+
+  const allApps = [...POPULAR_DISTRACTING_APPS, ...customApps];
 
   const toggleAppSelection = (appId) => {
     if (focusState.isActive) {
@@ -290,17 +323,38 @@ export default function FocusBlockerTab({ showToast }) {
         {/* App Checklist Card */}
         <div className="glass-panel" style={{ padding: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-            <h3 style={{ fontSize: '14px', fontWeight: '700', color: '#fff' }}>
-              📱 Apps to Block (التطبيقات المقفولة)
-            </h3>
-            <span style={{ fontSize: '11px', color: '#38bdf8', fontWeight: '600' }}>
-              {blockedApps.length} Selected
-            </span>
+            <div>
+              <h3 style={{ fontSize: '14px', fontWeight: '700', color: '#fff' }}>
+                📱 Apps to Block (التطبيقات المقفولة)
+              </h3>
+              <div style={{ fontSize: '11px', color: '#94a3b8' }}>اختر تطبيقات أو أضف أي تطبيق مثبت على هاتفك</div>
+            </div>
+
+            <button
+              onClick={() => setShowAddModal(true)}
+              style={{
+                background: 'rgba(56, 189, 248, 0.15)',
+                border: '1px solid rgba(56, 189, 248, 0.3)',
+                color: '#38bdf8',
+                borderRadius: '10px',
+                padding: '6px 12px',
+                fontSize: '11px',
+                fontWeight: '700',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                cursor: 'pointer'
+              }}
+            >
+              <Plus size={14} />
+              <span>Add App (+ إضافة تطبيق)</span>
+            </button>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {POPULAR_DISTRACTING_APPS.map((app) => {
+            {allApps.map((app) => {
               const isBlocked = blockedApps.includes(app.id);
+              const isCustom = customApps.some(c => c.id === app.id);
               return (
                 <div
                   key={app.id}
@@ -318,31 +372,132 @@ export default function FocusBlockerTab({ showToast }) {
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <span style={{ fontSize: '20px' }}>{app.icon}</span>
+                    <span style={{ fontSize: '20px' }}>{app.icon || '📱'}</span>
                     <div>
                       <div style={{ fontSize: '13px', fontWeight: '600', color: '#fff' }}>{app.name}</div>
-                      <div style={{ fontSize: '10px', color: '#64748b' }}>{app.category}</div>
+                      <div style={{ fontSize: '10px', color: '#64748b' }}>{app.category || 'App'}</div>
                     </div>
                   </div>
 
-                  <div style={{
-                    width: '22px',
-                    height: '22px',
-                    borderRadius: '7px',
-                    border: isBlocked ? 'none' : '1.5px solid rgba(255, 255, 255, 0.2)',
-                    background: isBlocked ? '#ef4444' : 'transparent',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    transition: 'all 0.2s ease'
-                  }}>
-                    {isBlocked && <Check size={14} color="#fff" strokeWidth={3} />}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    {isCustom && !focusState.isActive && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteCustomApp(app.id);
+                        }}
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          color: '#f87171',
+                          cursor: 'pointer',
+                          padding: '4px'
+                        }}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+
+                    <div style={{
+                      width: '22px',
+                      height: '22px',
+                      borderRadius: '7px',
+                      border: isBlocked ? 'none' : '1.5px solid rgba(255, 255, 255, 0.2)',
+                      background: isBlocked ? '#ef4444' : 'transparent',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      transition: 'all 0.2s ease'
+                    }}>
+                      {isBlocked && <Check size={14} color="#fff" strokeWidth={3} />}
+                    </div>
                   </div>
                 </div>
               );
             })}
           </div>
         </div>
+
+        {/* System iOS App Lock Guide Banner */}
+        <div className="glass-panel" style={{ padding: '16px', background: 'rgba(56, 189, 248, 0.04)', borderColor: 'rgba(56, 189, 248, 0.2)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+            <ShieldCheck size={18} color="#38bdf8" />
+            <h4 style={{ fontSize: '14px', fontWeight: '700', color: '#fff' }}>
+              قفل تطبيقات الآيفون بالكامل (Apple Screen Time)
+            </h4>
+          </div>
+          <p style={{ fontSize: '12px', color: '#94a3b8', lineHeight: '1.5', marginBottom: '10px' }}>
+            في نظام iOS، لقفل أي تطبيق ومنع فتحه نهائياً بكلمة سر حتى في الشاشة الرئيسية:
+          </p>
+          <div style={{ fontSize: '12px', color: '#cbd5e1', lineHeight: '1.6', paddingLeft: '8px' }}>
+            <div>1. افتح <strong>Settings (إعدادات الآيفون)</strong> ⚙️</div>
+            <div>2. اضغط على <strong>Screen Time (مدة استخدام الجهاز)</strong></div>
+            <div>3. اختر <strong>App Limits (حدود التطبيقات)</strong> ثم أضف التطبيقات وضع الحد دقيقة واحدة مع تفعيل كلمة السر.</div>
+          </div>
+        </div>
+
+        {/* Modal: Add Custom Phone App */}
+        {showAddModal && (
+          <div style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 9999,
+            background: 'rgba(0, 0, 0, 0.8)',
+            backdropFilter: 'blur(10px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px'
+          }}>
+            <div className="glass-panel" style={{
+              width: '100%',
+              maxWidth: '360px',
+              padding: '20px',
+              background: '#131726',
+              border: '1px solid rgba(255, 255, 255, 0.15)'
+            }}>
+              <h3 style={{ fontSize: '16px', fontWeight: '800', color: '#fff', marginBottom: '6px' }}>
+                Add Any App on Your iPhone
+              </h3>
+              <p style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '16px' }}>
+                اكتب اسم التطبيق الموجود على هاتفك لقفله أثناء جلسة المذاكرة:
+              </p>
+
+              <form onSubmit={handleAddCustomApp}>
+                <input
+                  type="text"
+                  autoFocus
+                  placeholder="e.g. PUBG, Roblox, BeReal, Discord..."
+                  value={newAppName}
+                  onChange={(e) => setNewAppName(e.target.value)}
+                  className="ios-input"
+                  style={{ marginBottom: '16px' }}
+                />
+
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowAddModal(false)}
+                    className="ios-button-secondary"
+                    style={{ flex: 1 }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="ios-button-primary"
+                    style={{ flex: 1, background: 'linear-gradient(135deg, #3b82f6, #6366f1)' }}
+                  >
+                    Add App
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
 
       </div>
     </div>
