@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, LogOut, CheckCircle2, Hourglass, Clock, ShieldAlert, Volume2 } from 'lucide-react';
+import { Bell, LogOut, CheckCircle2, Hourglass, Clock, ShieldAlert, Volume2, UserCheck } from 'lucide-react';
 import { getActiveTheme } from '../themeIcons';
 import { getScreenTimeData, saveScreenTimeData, formatMinutes, formatSeconds } from '../screenTime';
 import { notifications } from '../notifications';
 import { logoSound } from '../logoAudio';
+import { getCurrentUsername } from '../friendsApi';
 import AppIconBadge from './AppIconBadge';
 
 export default function SettingsTab({ user, onLogout, showToast }) {
@@ -59,20 +60,24 @@ export default function SettingsTab({ user, onLogout, showToast }) {
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <AppIconBadge size={44} radius={14} />
               <div>
-                <div style={{ fontSize: '16px', fontWeight: '700', color: '#fff' }}>Seif AI Guest (ضيف)</div>
-                <div style={{ fontSize: '12px', color: '#38bdf8' }}>⚡ Fast Direct Mode • No Account Needed</div>
+                <div style={{ fontSize: '16px', fontWeight: '800', color: '#fff' }}>
+                  @{getCurrentUsername() || 'User'}
+                </div>
+                <div style={{ fontSize: '12px', color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <UserCheck size={13} /> حساب متصل دائم • لا يحتاج كلمة سر
+                </div>
               </div>
             </div>
             <span style={{
-              background: 'rgba(56, 189, 248, 0.15)',
-              border: '1px solid rgba(56, 189, 248, 0.3)',
-              color: '#38bdf8',
+              background: 'rgba(52, 211, 153, 0.15)',
+              border: '1px solid rgba(52, 211, 153, 0.3)',
+              color: '#34d399',
               padding: '4px 10px',
               borderRadius: '12px',
               fontSize: '11px',
               fontWeight: '700'
             }}>
-              Instant
+              Active
             </span>
           </div>
         </div>

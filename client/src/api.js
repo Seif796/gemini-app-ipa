@@ -53,7 +53,7 @@ export function setGuestMode(active) {
 }
 
 // Direct client-side Gemini API call with Vision & Multimodal Image support
-async function directGeminiCall(prompt, systemInstruction = '', history = [], model = 'gemini-flash-lite-latest', imageBase64 = null) {
+export async function directGeminiCall(prompt, systemInstruction = '', history = [], model = 'gemini-flash-lite-latest', imageBase64 = null) {
   const key = getCustomApiKey() || DEFAULT_CLIENT_KEY;
   const safeModel = (model.includes('2.0') || model.includes('1.5')) ? 'gemini-flash-lite-latest' : model;
 

@@ -3,17 +3,23 @@ import { api, getToken, setToken, isGuestMode, setGuestMode } from './api';
 import { getActiveTheme, setActiveTheme } from './themeIcons';
 import { getScreenTimeData, saveScreenTimeData, formatSeconds } from './screenTime';
 import { notifications } from './notifications';
+import { getCurrentUsername, getFriendsData } from './friendsApi';
 import TabBar from './components/TabBar';
 import ChatTab from './components/ChatTab';
+import FriendsTab from './components/FriendsTab';
 import AiToolsTab from './components/AiToolsTab';
 import NotesTab from './components/NotesTab';
 import TasksTab from './components/TasksTab';
 import SettingsTab from './components/SettingsTab';
 import ScreenTimeOverlay from './components/ScreenTimeOverlay';
+import UsernameModal from './components/UsernameModal';
 
 export default function App() {
-  const [currentUser, setCurrentUser] = useState({ name: 'Guest', email: 'guest@seif-ai.local' });
+  const [myUsername, setMyUsername] = useState(getCurrentUsername());
+  const [isUsernameModalOpen, setIsUsernameModalOpen] = useState(!getCurrentUsername());
+  const [currentUser, setCurrentUser] = useState({ name: getCurrentUsername() || 'User', email: 'guest@seif-ai.local' });
   const [currentTab, setCurrentTab] = useState('chat');
+  const [pendingFriendsCount, setPendingFriendsCount] = useState(0);
   const [toast, setToast] = useState(null); // { message, type }
   const [screenTime, setScreenTime] = useState(getScreenTimeData());
   const continuousMinutesRef = useRef(0);
@@ -30,6 +36,20 @@ export default function App() {
       window.removeEventListener('seif-screentime-updated', handleStChange);
     };
   }, []);
+
+  // Check pending friend requests periodically for badge
+  useEffect(() => {
+    if (!myUsername) return;
+    const checkRequests = async () => {
+      try {
+        const data = await getFriendsData();
+        setPendingFriendsCount(data.incomingRequests.length);
+      } catch (_) {}
+    };
+    checkRequests();
+    const interval = setInterval(checkRequests, 5000);
+    return () => clearInterval(interval);
+  }, [myUsername]);
 
   // Screen time interval tracker - ticks every second when app is open
   useEffect(() => {
@@ -151,6 +171,9 @@ export default function App() {
       {/* Main Screen Content */}
       <main style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
         {currentTab === 'chat' && <ChatTab showToast={showToast} />}
+        {currentTab === 'friends' && (
+          <FriendsTab showToast={showToast} onOpenUsernameModal={() => setIsUsernameModalOpen(true)} />
+        )}
         {currentTab === 'tools' && <AiToolsTab showToast={showToast} />}
         {currentTab === 'notes' && <NotesTab showToast={showToast} onTaskAdded={() => {}} />}
         {currentTab === 'tasks' && <TasksTab showToast={showToast} />}
@@ -160,13 +183,28 @@ export default function App() {
       </main>
 
       {/* iOS Bottom Navigation Bar */}
-      <TabBar currentTab={currentTab} onSelectTab={setCurrentTab} />
+      <TabBar
+        currentTab={currentTab}
+        onSelectTab={setCurrentTab}
+        pendingFriendsCount={pendingFriendsCount}
+      />
 
       {/* Screen Time Enforcement Overlay */}
       <ScreenTimeOverlay
         screenTime={screenTime}
         onExtend={handleExtendScreenTime}
         onUnlock={handleUnlockScreenTime}
+      />
+
+      {/* Pure Username Sign-In / Account Modal */}
+      <UsernameModal
+        isOpen={isUsernameModalOpen}
+        onComplete={(username) => {
+          setIsUsernameModalOpen(false);
+          setMyUsername(username);
+          setCurrentUser({ name: username, email: `${username}@seif-ai.local` });
+        }}
+        showToast={showToast}
       />
     </div>
   );

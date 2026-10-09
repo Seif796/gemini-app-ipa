@@ -1,12 +1,12 @@
 import React from 'react';
-import { MessageSquare, Wand2, FileText, CheckSquare, Settings } from 'lucide-react';
+import { MessageSquare, Users, Wand2, FileText, CheckSquare, Settings } from 'lucide-react';
 
-export default function TabBar({ currentTab, onSelectTab, unreadTasksCount = 0 }) {
+export default function TabBar({ currentTab, onSelectTab, unreadTasksCount = 0, pendingFriendsCount = 0 }) {
   const tabs = [
     { id: 'chat', label: 'AI Chat', icon: MessageSquare },
-    { id: 'tools', label: 'AI Tools', icon: Wand2 },
+    { id: 'friends', label: 'Friends', icon: Users, badge: pendingFriendsCount },
+    { id: 'tools', label: 'Tools', icon: Wand2 },
     { id: 'notes', label: 'Notes', icon: FileText },
-    { id: 'tasks', label: 'Tasks', icon: CheckSquare, badge: unreadTasksCount },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
