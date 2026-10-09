@@ -262,6 +262,21 @@ export default function SettingsTab({ user, onLogout, showToast }) {
             </div>
           </div>
 
+          {/* iOS Note about Home Screen & In-App Icon */}
+          <div style={{
+            background: 'rgba(56, 189, 248, 0.08)',
+            border: '1px solid rgba(56, 189, 248, 0.2)',
+            borderRadius: '14px',
+            padding: '10px 14px',
+            marginBottom: '14px',
+            fontSize: '11px',
+            color: '#cbd5e1',
+            lineHeight: '1.5'
+          }}>
+            💡 <strong>ملاحظة هامة (Apple iOS):</strong> عند اختيار الأيقونة تتغير فوراً داخل التطبيق (في المحادثة والهيدر والبروفايل).
+            لتغيير أيقونة الشاشة الرئيسية من الخارج، يتيح نظام iOS ذلك أيضاً بنقرة عبر تطبيق <em>Shortcuts (الاختصارات)</em> في ثوانٍ.
+          </div>
+
           {/* Designer Icons Grid */}
           <div style={{ fontSize: '12px', fontWeight: '600', color: '#94a3b8', marginBottom: '8px' }}>
             Or choose a color theme preset:
