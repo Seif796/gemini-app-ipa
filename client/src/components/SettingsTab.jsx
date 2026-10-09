@@ -1,25 +1,40 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Palette, Sparkles, Check, Bell, Upload, RotateCcw, Image, LogOut, CheckCircle2 } from 'lucide-react';
+import { Palette, Sparkles, Check, Bell, Upload, RotateCcw, Image, LogOut, CheckCircle2, Hourglass, Clock, ShieldAlert } from 'lucide-react';
 import { ICON_THEMES, getActiveTheme, setActiveTheme, getCustomIconImage, setCustomIconImage } from '../themeIcons';
+import { getScreenTimeData, saveScreenTimeData, formatMinutes, formatSeconds } from '../screenTime';
 import { notifications } from '../notifications';
 import AppIconBadge from './AppIconBadge';
 
 export default function SettingsTab({ user, onLogout, showToast }) {
   const [activeThemeId, setActiveThemeId] = useState(getActiveTheme().id);
   const [customImg, setCustomImg] = useState(getCustomIconImage());
+  const [screenTime, setScreenTime] = useState(getScreenTimeData());
   const fileInputRef = useRef(null);
 
   useEffect(() => {
     const handleTheme = (e) => setActiveThemeId(e.detail?.id || getActiveTheme().id);
     const handleImg = (e) => setCustomImg(e.detail);
+    const handleSt = (e) => {
+      if (e.detail) setScreenTime({ ...e.detail });
+    };
 
     window.addEventListener('seif-theme-changed', handleTheme);
     window.addEventListener('seif-icon-image-changed', handleImg);
+    window.addEventListener('seif-screentime-updated', handleSt);
     return () => {
       window.removeEventListener('seif-theme-changed', handleTheme);
       window.removeEventListener('seif-icon-image-changed', handleImg);
+      window.removeEventListener('seif-screentime-updated', handleSt);
     };
   }, []);
+
+  const updateScreenTimeConfig = (updater) => {
+    setScreenTime((prev) => {
+      const updated = typeof updater === 'function' ? updater(prev) : { ...prev, ...updater };
+      saveScreenTimeData(updated);
+      return updated;
+    });
+  };
 
   const handleSelectTheme = (themeId) => {
     setCustomIconImage(null); // Clear custom image when selecting a preset theme
@@ -221,6 +236,128 @@ export default function SettingsTab({ user, onLogout, showToast }) {
                 </div>
               );
             })}
+          </div>
+        </div>
+
+        {/* Screen Time & Digital Wellbeing Card */}
+        <div className="glass-panel" style={{ padding: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Hourglass size={18} color="#f59e0b" />
+              <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#fff' }}>Screen Time (وقت الشاشة)</h3>
+            </div>
+            <span style={{
+              fontSize: '11px',
+              padding: '2px 8px',
+              borderRadius: '8px',
+              background: 'rgba(245, 158, 11, 0.15)',
+              color: '#fbbf24',
+              fontWeight: '600'
+            }}>
+              Wellbeing
+            </span>
+          </div>
+
+          <p style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '14px', lineHeight: '1.4' }}>
+            تحكم في مدة استخدامك اليومية للتطبيق واحصل على تنبيهات استراحة لحماية عينيك وتنظيم وقتك.
+          </p>
+
+          {/* Today's Usage Stats Bar */}
+          <div style={{
+            background: 'rgba(255, 255, 255, 0.05)',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            borderRadius: '14px',
+            padding: '12px 14px',
+            marginBottom: '14px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Clock size={16} color="#38bdf8" />
+              <span style={{ fontSize: '12px', color: '#cbd5e1' }}>اليوم (Today's Usage):</span>
+            </div>
+            <span style={{ fontSize: '13px', fontWeight: '700', color: '#38bdf8' }}>
+              {formatSeconds(screenTime.todayUsageSeconds)}
+            </span>
+          </div>
+
+          {/* Daily Limit Switch & Selector */}
+          <div style={{
+            background: 'rgba(255, 255, 255, 0.03)',
+            borderRadius: '14px',
+            padding: '12px',
+            border: '1px solid rgba(255, 255, 255, 0.06)',
+            marginBottom: '12px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: screenTime.limitEnabled ? '10px' : '0' }}>
+              <div>
+                <div style={{ fontSize: '13px', fontWeight: '600', color: '#fff' }}>الحد اليومي (Daily Limit)</div>
+                <div style={{ fontSize: '11px', color: '#64748b' }}>إيقاف التطبيق عند الوصول للحد المحدد</div>
+              </div>
+              <input
+                type="checkbox"
+                checked={screenTime.limitEnabled}
+                onChange={(e) => {
+                  updateScreenTimeConfig({ limitEnabled: e.target.checked });
+                  showToast(e.target.checked ? 'Daily screen time limit turned ON' : 'Daily limit turned OFF', 'info');
+                }}
+                style={{ width: '20px', height: '20px', accentColor: '#f59e0b', cursor: 'pointer' }}
+              />
+            </div>
+
+            {screenTime.limitEnabled && (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px', paddingTop: '8px' }}>
+                {[15, 30, 45, 60, 90, 120].map((mins) => {
+                  const isSelected = screenTime.dailyLimitMinutes === mins;
+                  return (
+                    <button
+                      key={mins}
+                      onClick={() => {
+                        updateScreenTimeConfig({ dailyLimitMinutes: mins });
+                        showToast(`Daily limit set to ${formatMinutes(mins)}`, 'success');
+                      }}
+                      style={{
+                        padding: '6px 4px',
+                        borderRadius: '8px',
+                        fontSize: '11px',
+                        fontWeight: '600',
+                        border: isSelected ? '1.5px solid #f59e0b' : '1px solid rgba(255, 255, 255, 0.1)',
+                        background: isSelected ? 'rgba(245, 158, 11, 0.2)' : 'rgba(255, 255, 255, 0.04)',
+                        color: isSelected ? '#fbbf24' : '#94a3b8',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {formatMinutes(mins)}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Break Reminders Switch */}
+          <div style={{
+            background: 'rgba(255, 255, 255, 0.03)',
+            borderRadius: '14px',
+            padding: '12px',
+            border: '1px solid rgba(255, 255, 255, 0.06)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <div style={{ fontSize: '13px', fontWeight: '600', color: '#fff' }}>تنبيهات الاستراحة (Break Reminders)</div>
+                <div style={{ fontSize: '11px', color: '#64748b' }}>إشعار كل 20 دقيقة استخدام متواصل لأخذ راحة</div>
+              </div>
+              <input
+                type="checkbox"
+                checked={screenTime.breakRemindersEnabled}
+                onChange={(e) => {
+                  updateScreenTimeConfig({ breakRemindersEnabled: e.target.checked });
+                  showToast(e.target.checked ? 'Break reminders enabled' : 'Break reminders disabled', 'info');
+                }}
+                style={{ width: '20px', height: '20px', accentColor: '#10b981', cursor: 'pointer' }}
+              />
+            </div>
           </div>
         </div>
 

@@ -1,23 +1,107 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { api, getToken, setToken, isGuestMode } from './api';
 import { getActiveTheme, setActiveTheme } from './themeIcons';
+import { getScreenTimeData, saveScreenTimeData, formatSeconds } from './screenTime';
+import { notifications } from './notifications';
 import TabBar from './components/TabBar';
 import ChatTab from './components/ChatTab';
 import NotesTab from './components/NotesTab';
 import TasksTab from './components/TasksTab';
 import SettingsTab from './components/SettingsTab';
 import AuthModal from './components/AuthModal';
+import ScreenTimeOverlay from './components/ScreenTimeOverlay';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [authChecking, setAuthChecking] = useState(true);
   const [currentTab, setCurrentTab] = useState('chat');
   const [toast, setToast] = useState(null); // { message, type }
+  const [screenTime, setScreenTime] = useState(getScreenTimeData());
+  const continuousMinutesRef = useRef(0);
 
   useEffect(() => {
     setActiveTheme(getActiveTheme().id);
     checkInitialAuth();
+
+    const handleStChange = (e) => {
+      if (e.detail) setScreenTime({ ...e.detail });
+    };
+    window.addEventListener('seif-screentime-updated', handleStChange);
+    return () => window.removeEventListener('seif-screentime-updated', handleStChange);
   }, []);
+
+  // Screen time interval tracker - ticks every second when app is open
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setScreenTime((prev) => {
+        const nextSeconds = prev.todayUsageSeconds + 1;
+        const currentMins = Math.floor(nextSeconds / 60);
+        let shouldLock = prev.isLocked;
+
+        // Check daily limit
+        if (prev.limitEnabled && prev.dailyLimitMinutes > 0 && !prev.isLocked) {
+          if (nextSeconds >= prev.dailyLimitMinutes * 60) {
+            shouldLock = true;
+            notifications.scheduleLocal({
+              title: '⌛ Screen Time Limit Reached',
+              body: `You have reached your daily limit of ${prev.dailyLimitMinutes} minutes.`
+            });
+          }
+        }
+
+        // Check continuous break reminder (every breakIntervalMinutes)
+        if (prev.breakRemindersEnabled && prev.breakIntervalMinutes > 0) {
+          if (nextSeconds > 0 && nextSeconds % (prev.breakIntervalMinutes * 60) === 0) {
+            notifications.scheduleLocal({
+              title: '🧘 Break Time Reminder',
+              body: `You have been using the app for ${prev.breakIntervalMinutes} mins. Take a short pause!`
+            });
+          }
+        }
+
+        const updated = {
+          ...prev,
+          todayUsageSeconds: nextSeconds,
+          isLocked: shouldLock
+        };
+
+        // Persist to localStorage every 5 seconds to minimize disk writes
+        if (nextSeconds % 5 === 0) {
+          saveScreenTimeData(updated);
+        }
+
+        return updated;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  const handleExtendScreenTime = (extraMinutes = 15) => {
+    setScreenTime((prev) => {
+      const updated = {
+        ...prev,
+        dailyLimitMinutes: prev.dailyLimitMinutes + extraMinutes,
+        isLocked: false
+      };
+      saveScreenTimeData(updated);
+      showToast(`+${extraMinutes} minutes added to today's screen time! ⏱️`, 'success');
+      return updated;
+    });
+  };
+
+  const handleUnlockScreenTime = () => {
+    setScreenTime((prev) => {
+      const updated = {
+        ...prev,
+        isLocked: false,
+        limitEnabled: false
+      };
+      saveScreenTimeData(updated);
+      showToast('Daily screen time limit disabled for today. Enjoy! 🌟', 'info');
+      return updated;
+    });
+  };
 
   const checkInitialAuth = async () => {
     const token = getToken();
@@ -123,6 +207,13 @@ export default function App() {
           }}
         />
       )}
+
+      {/* Screen Time Enforcement Overlay */}
+      <ScreenTimeOverlay
+        screenTime={screenTime}
+        onExtend={handleExtendScreenTime}
+        onUnlock={handleUnlockScreenTime}
+      />
     </div>
   );
 }
