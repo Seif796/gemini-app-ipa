@@ -45,8 +45,29 @@ export function findAppByName(name) {
 
 export function openApp(appKeyOrUrl) {
   try {
-    let targetUrl = appKeyOrUrl;
     const known = findAppByName(appKeyOrUrl);
+
+    // Check if app is blocked by Study / Focus Mode
+    try {
+      const rawFocus = localStorage.getItem('seif_focus_blocker_data');
+      if (rawFocus) {
+        const focus = JSON.parse(rawFocus);
+        if (focus.isActive) {
+          const appCheck = (known?.id || appKeyOrUrl).toLowerCase();
+          const isBlocked = focus.blockedAppIds?.some((id) => appCheck.includes(id) || id.includes(appCheck));
+          if (isBlocked) {
+            window.dispatchEvent(new CustomEvent('seif-blocked-app-attempted', {
+              detail: { name: known?.name || appKeyOrUrl }
+            }));
+            return false;
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Focus block check error:', e);
+    }
+
+    let targetUrl = appKeyOrUrl;
     if (known) {
       targetUrl = known.scheme;
     }

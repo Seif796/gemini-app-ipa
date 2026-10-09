@@ -1,19 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { api, getToken, setToken, isGuestMode } from './api';
+import { api, getToken, setToken, isGuestMode, setGuestMode } from './api';
 import { getActiveTheme, setActiveTheme } from './themeIcons';
 import { getScreenTimeData, saveScreenTimeData, formatSeconds } from './screenTime';
 import { notifications } from './notifications';
 import TabBar from './components/TabBar';
 import ChatTab from './components/ChatTab';
+import FocusBlockerTab from './components/FocusBlockerTab';
 import NotesTab from './components/NotesTab';
 import TasksTab from './components/TasksTab';
 import SettingsTab from './components/SettingsTab';
-import AuthModal from './components/AuthModal';
 import ScreenTimeOverlay from './components/ScreenTimeOverlay';
 
 export default function App() {
-  const [currentUser, setCurrentUser] = useState(null);
-  const [authChecking, setAuthChecking] = useState(true);
+  const [currentUser, setCurrentUser] = useState({ name: 'Guest', email: 'guest@seif-ai.local' });
   const [currentTab, setCurrentTab] = useState('chat');
   const [toast, setToast] = useState(null); // { message, type }
   const [screenTime, setScreenTime] = useState(getScreenTimeData());
@@ -21,13 +20,21 @@ export default function App() {
 
   useEffect(() => {
     setActiveTheme(getActiveTheme().id);
-    checkInitialAuth();
+    setGuestMode(true);
+
+    const handleBlockedAttempt = (e) => {
+      showToast(`⛔ ${e.detail?.name || 'This App'} is locked during Study Mode!`, 'error');
+    };
+    window.addEventListener('seif-blocked-app-attempted', handleBlockedAttempt);
 
     const handleStChange = (e) => {
       if (e.detail) setScreenTime({ ...e.detail });
     };
     window.addEventListener('seif-screentime-updated', handleStChange);
-    return () => window.removeEventListener('seif-screentime-updated', handleStChange);
+    return () => {
+      window.removeEventListener('seif-blocked-app-attempted', handleBlockedAttempt);
+      window.removeEventListener('seif-screentime-updated', handleStChange);
+    };
   }, []);
 
   // Screen time interval tracker - ticks every second when app is open
@@ -103,25 +110,6 @@ export default function App() {
     });
   };
 
-  const checkInitialAuth = async () => {
-    const token = getToken();
-    if (!token) {
-      setAuthChecking(false);
-      return;
-    }
-
-    try {
-      const res = await api.getMe();
-      setCurrentUser(res.user);
-    } catch (err) {
-      console.warn('Saved token expired or invalid:', err);
-      setToken(null);
-      setCurrentUser(null);
-    } finally {
-      setAuthChecking(false);
-    }
-  };
-
   const showToast = (message, type = 'info') => {
     setToast({ message, type });
     setTimeout(() => {
@@ -131,27 +119,8 @@ export default function App() {
 
   const handleLogout = () => {
     setToken(null);
-    setCurrentUser(null);
     showToast('Signed out successfully', 'info');
   };
-
-  if (authChecking) {
-    return (
-      <div className="ios-app-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div style={{ textAlign: 'center' }}>
-          <div style={{
-            width: '48px',
-            height: '48px',
-            borderRadius: '16px',
-            background: 'linear-gradient(135deg, #6366f1, #a855f7)',
-            margin: '0 auto 16px',
-            animation: 'pulse 1.5s infinite alternate'
-          }} />
-          <p style={{ color: '#94a3b8', fontSize: '13px' }}>Connecting to 24/7 Companion...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="ios-app-container">
@@ -188,6 +157,7 @@ export default function App() {
       {/* Main Screen Content */}
       <main style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
         {currentTab === 'chat' && <ChatTab showToast={showToast} />}
+        {currentTab === 'focus' && <FocusBlockerTab showToast={showToast} />}
         {currentTab === 'notes' && <NotesTab showToast={showToast} onTaskAdded={() => {}} />}
         {currentTab === 'tasks' && <TasksTab showToast={showToast} />}
         {currentTab === 'settings' && (
@@ -197,16 +167,6 @@ export default function App() {
 
       {/* iOS Bottom Navigation Bar */}
       <TabBar currentTab={currentTab} onSelectTab={setCurrentTab} />
-
-      {/* Auth Modal if user is not signed in */}
-      {!currentUser && (
-        <AuthModal
-          onAuthSuccess={(user) => {
-            setCurrentUser(user);
-            showToast(`Welcome back, ${user.name}!`, 'success');
-          }}
-        />
-      )}
 
       {/* Screen Time Enforcement Overlay */}
       <ScreenTimeOverlay

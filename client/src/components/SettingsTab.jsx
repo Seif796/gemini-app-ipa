@@ -104,18 +104,21 @@ export default function SettingsTab({ user, onLogout, showToast }) {
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <AppIconBadge size={44} radius={14} />
               <div>
-                <div style={{ fontSize: '16px', fontWeight: '700', color: '#fff' }}>{user?.name || 'iPhone User'}</div>
-                <div style={{ fontSize: '12px', color: '#94a3b8' }}>Seif Ai Test • 24/7 Active</div>
+                <div style={{ fontSize: '16px', fontWeight: '700', color: '#fff' }}>Seif AI Guest (ضيف)</div>
+                <div style={{ fontSize: '12px', color: '#38bdf8' }}>⚡ Fast Direct Mode • No Account Needed</div>
               </div>
             </div>
-            <button
-              onClick={onLogout}
-              className="ios-button-secondary"
-              style={{ color: '#f87171', borderColor: 'rgba(239, 68, 68, 0.3)', padding: '6px 12px', fontSize: '12px' }}
-            >
-              <LogOut size={14} />
-              <span>Log Out</span>
-            </button>
+            <span style={{
+              background: 'rgba(56, 189, 248, 0.15)',
+              border: '1px solid rgba(56, 189, 248, 0.3)',
+              color: '#38bdf8',
+              padding: '4px 10px',
+              borderRadius: '12px',
+              fontSize: '11px',
+              fontWeight: '700'
+            }}>
+              Instant
+            </span>
           </div>
         </div>
 
