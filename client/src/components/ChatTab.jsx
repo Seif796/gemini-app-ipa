@@ -260,18 +260,8 @@ export default function ChatTab({ showToast }) {
               }}
             >
               {!isUser && (
-                <div style={{
-                  width: '28px',
-                  height: '28px',
-                  borderRadius: '10px',
-                  background: 'rgba(129, 140, 248, 0.2)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
-                  marginTop: '2px'
-                }}>
-                  <Bot size={16} color={theme.primary} />
+                <div style={{ flexShrink: 0, marginTop: '2px' }}>
+                  <AppIconBadge size={28} radius={9} showBorder={false} />
                 </div>
               )}
 

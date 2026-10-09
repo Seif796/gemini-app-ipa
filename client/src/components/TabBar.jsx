@@ -1,10 +1,10 @@
 import React from 'react';
-import { MessageSquare, ShieldAlert, FileText, CheckSquare, Settings } from 'lucide-react';
+import { MessageSquare, Wand2, FileText, CheckSquare, Settings } from 'lucide-react';
 
 export default function TabBar({ currentTab, onSelectTab, unreadTasksCount = 0 }) {
   const tabs = [
     { id: 'chat', label: 'AI Chat', icon: MessageSquare },
-    { id: 'focus', label: 'App Lock', icon: ShieldAlert },
+    { id: 'tools', label: 'AI Tools', icon: Wand2 },
     { id: 'notes', label: 'Notes', icon: FileText },
     { id: 'tasks', label: 'Tasks', icon: CheckSquare, badge: unreadTasksCount },
     { id: 'settings', label: 'Settings', icon: Settings },

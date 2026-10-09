@@ -31,7 +31,9 @@ export default function AppIconBadge({ size = 38, radius = 13, showBorder = true
     }
   };
 
-  if (customImg) {
+  const displayImg = customImg || '/app-icon.png';
+
+  if (displayImg) {
     return (
       <div style={{
         width: `${size}px`,
@@ -40,10 +42,11 @@ export default function AppIconBadge({ size = 38, radius = 13, showBorder = true
         overflow: 'hidden',
         boxShadow: `0 4px 15px rgba(0, 0, 0, 0.4)`,
         border: showBorder ? '1.5px solid rgba(255, 255, 255, 0.2)' : 'none',
-        flexShrink: 0
+        flexShrink: 0,
+        background: '#13151f'
       }}>
         <img
-          src={customImg}
+          src={displayImg}
           alt="App Icon"
           style={{ width: '100%', height: '100%', objectFit: 'cover' }}
         />

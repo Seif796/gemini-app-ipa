@@ -5,7 +5,7 @@ import { getScreenTimeData, saveScreenTimeData, formatSeconds } from './screenTi
 import { notifications } from './notifications';
 import TabBar from './components/TabBar';
 import ChatTab from './components/ChatTab';
-import FocusBlockerTab from './components/FocusBlockerTab';
+import AiToolsTab from './components/AiToolsTab';
 import NotesTab from './components/NotesTab';
 import TasksTab from './components/TasksTab';
 import SettingsTab from './components/SettingsTab';
@@ -22,17 +22,11 @@ export default function App() {
     setActiveTheme(getActiveTheme().id);
     setGuestMode(true);
 
-    const handleBlockedAttempt = (e) => {
-      showToast(`⛔ ${e.detail?.name || 'This App'} is locked during Study Mode!`, 'error');
-    };
-    window.addEventListener('seif-blocked-app-attempted', handleBlockedAttempt);
-
     const handleStChange = (e) => {
       if (e.detail) setScreenTime({ ...e.detail });
     };
     window.addEventListener('seif-screentime-updated', handleStChange);
     return () => {
-      window.removeEventListener('seif-blocked-app-attempted', handleBlockedAttempt);
       window.removeEventListener('seif-screentime-updated', handleStChange);
     };
   }, []);
@@ -157,7 +151,7 @@ export default function App() {
       {/* Main Screen Content */}
       <main style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
         {currentTab === 'chat' && <ChatTab showToast={showToast} />}
-        {currentTab === 'focus' && <FocusBlockerTab showToast={showToast} />}
+        {currentTab === 'tools' && <AiToolsTab showToast={showToast} />}
         {currentTab === 'notes' && <NotesTab showToast={showToast} onTaskAdded={() => {}} />}
         {currentTab === 'tasks' && <TasksTab showToast={showToast} />}
         {currentTab === 'settings' && (
