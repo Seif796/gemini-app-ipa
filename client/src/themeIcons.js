@@ -59,11 +59,31 @@ export function getCustomIconImage() {
   return localStorage.getItem('seif_custom_app_icon_img') || null;
 }
 
+export async function setAlternateHomeScreenIcon(iconName) {
+  try {
+    const { Plugins } = await import('@capacitor/core');
+    if (Plugins?.AppIconPlugin?.setAlternateIconName) {
+      await Plugins.AppIconPlugin.setAlternateIconName({ name: iconName });
+      console.log('Native iOS alternate icon changed to:', iconName);
+      return true;
+    }
+  } catch (err) {
+    console.warn('Native iOS alternate icon switch not available on this platform:', err);
+  }
+  return false;
+}
+
 export function setCustomIconImage(dataUrl) {
   if (dataUrl) {
     localStorage.setItem('seif_custom_app_icon_img', dataUrl);
+    if (dataUrl.includes('illustrator-3d')) {
+      setAlternateHomeScreenIcon('IconIllustrator');
+    } else if (dataUrl.includes('app-icon')) {
+      setAlternateHomeScreenIcon('IconClassic');
+    }
   } else {
     localStorage.removeItem('seif_custom_app_icon_img');
+    setAlternateHomeScreenIcon('primary');
   }
   updateFavicon(dataUrl);
   window.dispatchEvent(new CustomEvent('seif-icon-image-changed', { detail: dataUrl }));
