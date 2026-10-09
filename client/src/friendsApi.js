@@ -24,80 +24,93 @@ export function setCurrentUsername(username) {
   }
 }
 
-// Fetch master registry from Cloud with fallback to local cache
+// Helper: Normalize registry structure safely
+function sanitizeRegistry(raw) {
+  const d = raw || {};
+  return {
+    users: (d.users && typeof d.users === 'object' && !Array.isArray(d.users)) ? d.users : {},
+    friendRequests: Array.isArray(d.friendRequests) ? d.friendRequests : [],
+    friendships: (d.friendships && typeof d.friendships === 'object' && !Array.isArray(d.friendships)) ? d.friendships : {},
+    chatRooms: (d.chatRooms && typeof d.chatRooms === 'object' && !Array.isArray(d.chatRooms)) ? d.chatRooms : {},
+    botSettings: (d.botSettings && typeof d.botSettings === 'object' && !Array.isArray(d.botSettings)) ? d.botSettings : {}
+  };
+}
+
+// Fetch master registry with strict 2-second timeout and instant local fallback
 export async function getMasterRegistry(force = false) {
   const now = Date.now();
-  if (!force && registryCache && (now - lastFetchTime < 2500)) {
+  if (!force && registryCache && (now - lastFetchTime < 3000)) {
     return registryCache;
   }
 
+  // Load local cache first so we always have something valid
+  if (!registryCache) {
+    const local = localStorage.getItem(KEY_LOCAL_REGISTRY);
+    if (local) {
+      try {
+        registryCache = sanitizeRegistry(JSON.parse(local));
+      } catch (_) {}
+    }
+  }
+
+  if (!registryCache) {
+    registryCache = sanitizeRegistry({});
+  }
+
+  // Attempt non-blocking fast cloud sync (max 2 seconds timeout)
   try {
-    const res = await fetch(CLOUD_URL);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2000);
+
+    const res = await fetch(CLOUD_URL, { signal: controller.signal });
+    clearTimeout(timeoutId);
+
     if (res.ok) {
       const json = await res.json();
       if (json && json.data) {
-        registryCache = {
-          users: json.data.users || {},
-          friendRequests: json.data.friendRequests || [],
-          friendships: json.data.friendships || {},
-          chatRooms: json.data.chatRooms || {},
-          botSettings: json.data.botSettings || {}
-        };
+        registryCache = sanitizeRegistry(json.data);
         lastFetchTime = now;
         localStorage.setItem(KEY_LOCAL_REGISTRY, JSON.stringify(registryCache));
         return registryCache;
       }
     }
   } catch (err) {
-    console.warn('Could not fetch cloud registry, using local cache:', err);
-  }
-
-  // Fallback to local cache
-  if (!registryCache) {
-    const local = localStorage.getItem(KEY_LOCAL_REGISTRY);
-    if (local) {
-      try { registryCache = JSON.parse(local); } catch (_) {}
-    }
-  }
-
-  if (!registryCache) {
-    registryCache = {
-      users: {},
-      friendRequests: [],
-      friendships: {},
-      chatRooms: {},
-      botSettings: {}
-    };
+    // Cloud slow or offline, continue with local cache smoothly
   }
 
   return registryCache;
 }
 
-// Save master registry to Cloud
+// Save master registry to local cache immediately and sync to cloud in background
 export async function saveMasterRegistry(data) {
-  registryCache = data;
-  localStorage.setItem(KEY_LOCAL_REGISTRY, JSON.stringify(data));
+  const cleanData = sanitizeRegistry(data);
+  registryCache = cleanData;
+  localStorage.setItem(KEY_LOCAL_REGISTRY, JSON.stringify(cleanData));
   lastFetchTime = Date.now();
 
-  try {
-    await fetch(CLOUD_URL, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: 'seif_ai_master_registry_v1',
-        data: {
-          users: data.users || {},
-          friendRequests: data.friendRequests || [],
-          friendships: data.friendships || {},
-          chatRooms: data.chatRooms || {},
-          botSettings: data.botSettings || {},
-          updatedAt: new Date().toISOString()
-        }
-      })
-    });
-  } catch (err) {
-    console.warn('Could not sync to cloud registry:', err);
-  }
+  // Background Cloud Sync - Never blocks UI
+  (async () => {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 3500);
+
+      await fetch(CLOUD_URL, {
+        method: 'PUT',
+        signal: controller.signal,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: 'seif_ai_master_registry_v1',
+          data: {
+            ...cleanData,
+            updatedAt: new Date().toISOString()
+          }
+        })
+      });
+      clearTimeout(timeoutId);
+    } catch (err) {
+      // Ignore background sync errors, local cache remains safe
+    }
+  })();
 
   return registryCache;
 }
@@ -239,14 +252,17 @@ export async function getFriendsData() {
 
   const registry = await getMasterRegistry();
 
-  const friends = registry.friendships[myUsername] || [];
+  const friendships = (registry && registry.friendships) ? registry.friendships : {};
+  const rawFriends = friendships[myUsername];
+  const friends = Array.isArray(rawFriends) ? rawFriends : [];
 
-  const incomingRequests = (registry.friendRequests || []).filter(
-    r => r.to === myUsername && r.status === 'pending'
+  const rawReqs = (registry && Array.isArray(registry.friendRequests)) ? registry.friendRequests : [];
+  const incomingRequests = rawReqs.filter(
+    r => r && r.to === myUsername && r.status === 'pending'
   );
 
-  const outgoingRequests = (registry.friendRequests || []).filter(
-    r => r.from === myUsername && r.status === 'pending'
+  const outgoingRequests = rawReqs.filter(
+    r => r && r.from === myUsername && r.status === 'pending'
   );
 
   return { friends, incomingRequests, outgoingRequests };
@@ -254,17 +270,22 @@ export async function getFriendsData() {
 
 // Helper: Room key for 2 users
 export function getChatRoomKey(user1, user2) {
-  return [user1.toLowerCase().trim(), user2.toLowerCase().trim()].sort().join('___');
+  const u1 = (user1 || '').toLowerCase().trim();
+  const u2 = (user2 || '').toLowerCase().trim();
+  return [u1, u2].sort().join('___');
 }
 
 // 6. Get Chat Messages
 export async function getChatMessages(friendUsername) {
+  if (!friendUsername) return { messages: [], isBotEnabled: false };
   const myUsername = getCurrentUsername();
   const roomKey = getChatRoomKey(myUsername, friendUsername);
   const registry = await getMasterRegistry();
 
-  const messages = registry.chatRooms[roomKey] || [];
-  const isBotEnabled = Boolean(registry.botSettings?.[roomKey]);
+  const chatRooms = (registry && registry.chatRooms) ? registry.chatRooms : {};
+  const rawMessages = chatRooms[roomKey];
+  const messages = Array.isArray(rawMessages) ? rawMessages : [];
+  const isBotEnabled = Boolean(registry && registry.botSettings && registry.botSettings[roomKey]);
 
   return { messages, isBotEnabled };
 }
@@ -361,3 +382,4 @@ Keep answers punchy and fun for chat.`;
     console.warn('Bot auto-reply error:', err);
   }
 }
+

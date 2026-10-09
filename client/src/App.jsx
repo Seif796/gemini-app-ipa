@@ -43,11 +43,12 @@ export default function App() {
     const checkRequests = async () => {
       try {
         const data = await getFriendsData();
-        setPendingFriendsCount(data.incomingRequests.length);
+        const count = (data && Array.isArray(data.incomingRequests)) ? data.incomingRequests.length : 0;
+        setPendingFriendsCount(count);
       } catch (_) {}
     };
     checkRequests();
-    const interval = setInterval(checkRequests, 5000);
+    const interval = setInterval(checkRequests, 6000);
     return () => clearInterval(interval);
   }, [myUsername]);
 

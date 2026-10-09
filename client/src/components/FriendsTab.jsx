@@ -11,6 +11,12 @@ import {
 import { playNotificationSound } from '../notifications';
 import AppIconBadge from './AppIconBadge';
 
+function getUserInitials(name) {
+  if (!name) return '?';
+  const str = typeof name === 'string' ? name : String(name?.username || name?.from || name || '');
+  return (str.trim().substring(0, 2) || '?').toUpperCase();
+}
+
 export default function FriendsTab({ showToast, onOpenUsernameModal }) {
   const [myUsername, setMyUsername] = useState(getCurrentUsername());
   const [friendsData, setFriendsData] = useState({ friends: [], incomingRequests: [], outgoingRequests: [] });
@@ -45,31 +51,38 @@ export default function FriendsTab({ showToast, onOpenUsernameModal }) {
         if (activeFriend) {
           const res = await getChatMessages(activeFriend);
           setChatMessages((prev) => {
-            // Check if new message arrived from friend or bot
-            if (res.messages.length > prev.length) {
-              const last = res.messages[res.messages.length - 1];
+            const prevArr = Array.isArray(prev) ? prev : [];
+            const newArr = (res && Array.isArray(res.messages)) ? res.messages : [];
+            if (newArr.length > prevArr.length) {
+              const last = newArr[newArr.length - 1];
               if (last && last.sender !== myUsername) {
                 playNotificationSound();
               }
             }
-            return res.messages;
+            return newArr;
           });
-          setIsBotEnabled(res.isBotEnabled);
+          setIsBotEnabled(Boolean(res?.isBotEnabled));
         } else {
           const data = await getFriendsData();
           setFriendsData((prev) => {
-            if (data.incomingRequests.length > prev.incomingRequests.length) {
+            const prevReqs = (prev && Array.isArray(prev.incomingRequests)) ? prev.incomingRequests : [];
+            const newReqs = (data && Array.isArray(data.incomingRequests)) ? data.incomingRequests : [];
+            if (newReqs.length > prevReqs.length) {
               playNotificationSound();
               showToast('🔔 وصلك طلب صداقة جديد!', 'info');
             }
-            return data;
+            return {
+              friends: (data && Array.isArray(data.friends)) ? data.friends : [],
+              incomingRequests: newReqs,
+              outgoingRequests: (data && Array.isArray(data.outgoingRequests)) ? data.outgoingRequests : []
+            };
           });
         }
       } catch (_) {}
     };
 
     poll();
-    pollTimerRef.current = setInterval(poll, 2500);
+    pollTimerRef.current = setInterval(poll, 3000);
     return () => clearInterval(pollTimerRef.current);
   }, [myUsername, activeFriend]);
 
@@ -205,11 +218,11 @@ export default function FriendsTab({ showToast, onOpenUsernameModal }) {
               fontWeight: '700',
               fontSize: '14px'
             }}>
-              {activeFriend.substring(0, 2).toUpperCase()}
+              {getUserInitials(activeFriend)}
             </div>
             <div>
               <div style={{ fontSize: '15px', fontWeight: '700', color: '#fff' }}>
-                @{activeFriend}
+                @{typeof activeFriend === 'string' ? activeFriend : activeFriend?.username || ''}
               </div>
               <div style={{ fontSize: '11px', color: '#34d399', display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#34d399' }} />
@@ -466,7 +479,7 @@ export default function FriendsTab({ showToast, onOpenUsernameModal }) {
                 fontWeight: '800',
                 fontSize: '17px'
               }}>
-                {myUsername ? myUsername.substring(0, 2).toUpperCase() : '?'}
+                {getUserInitials(myUsername)}
               </div>
               <div>
                 <div style={{ fontSize: '11px', color: '#94a3b8' }}>اسم المستخدم الخاص بك:</div>
@@ -544,7 +557,7 @@ export default function FriendsTab({ showToast, onOpenUsernameModal }) {
         </div>
 
         {/* 🔔 Incoming Friend Requests */}
-        {friendsData.incomingRequests.length > 0 && (
+        {(Array.isArray(friendsData?.incomingRequests) ? friendsData.incomingRequests.length : 0) > 0 && (
           <div className="glass-panel" style={{ padding: '16px', border: '1.5px solid rgba(56, 189, 248, 0.4)' }}>
             <div style={{
               display: 'flex',
@@ -564,13 +577,13 @@ export default function FriendsTab({ showToast, onOpenUsernameModal }) {
                 padding: '2px 8px',
                 borderRadius: '12px'
               }}>
-                {friendsData.incomingRequests.length} جديد
+                {Array.isArray(friendsData?.incomingRequests) ? friendsData.incomingRequests.length : 0} جديد
               </span>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {friendsData.incomingRequests.map((req) => (
-                <div key={req.id} style={{
+              {(Array.isArray(friendsData?.incomingRequests) ? friendsData.incomingRequests : []).map((req) => (
+                <div key={req?.id || Math.random()} style={{
                   background: 'rgba(255, 255, 255, 0.04)',
                   borderRadius: '14px',
                   padding: '12px',
@@ -591,10 +604,10 @@ export default function FriendsTab({ showToast, onOpenUsernameModal }) {
                       fontWeight: '700',
                       fontSize: '13px'
                     }}>
-                      {req.from.substring(0, 2).toUpperCase()}
+                      {getUserInitials(req?.from)}
                     </div>
                     <div>
-                      <div style={{ fontSize: '14px', fontWeight: '700', color: '#fff' }}>@{req.from}</div>
+                      <div style={{ fontSize: '14px', fontWeight: '700', color: '#fff' }}>@{req?.from}</div>
                       <div style={{ fontSize: '11px', color: '#94a3b8' }}>أرسل لك طلب صداقة</div>
                     </div>
                   </div>
@@ -646,57 +659,62 @@ export default function FriendsTab({ showToast, onOpenUsernameModal }) {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Users size={18} color="#38bdf8" />
-              <h3 style={{ fontSize: '15px', fontWeight: '700', color: '#fff' }}>أصدقائي ({friendsData.friends.length})</h3>
+              <h3 style={{ fontSize: '15px', fontWeight: '700', color: '#fff' }}>
+                أصدقائي ({Array.isArray(friendsData?.friends) ? friendsData.friends.length : 0})
+              </h3>
             </div>
           </div>
 
-          {friendsData.friends.length === 0 ? (
+          {(!Array.isArray(friendsData?.friends) || friendsData.friends.length === 0) ? (
             <div style={{ textAlign: 'center', padding: '24px 10px', color: '#64748b', fontSize: '13px' }}>
               ليس لديك أصدقاء بعد. اكتب اسم مستخدم صديقك بالأعلى وأرسل له طلب صداقة! 🤝
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {friendsData.friends.map((friend) => (
-                <div key={friend} style={{
-                  background: 'rgba(255, 255, 255, 0.04)',
-                  borderRadius: '16px',
-                  padding: '12px 14px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  border: '1px solid rgba(255, 255, 255, 0.06)'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <div style={{
-                      width: '40px',
-                      height: '40px',
-                      borderRadius: '50%',
-                      background: 'linear-gradient(135deg, #0284c7 0%, #38bdf8 100%)',
-                      color: '#fff',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontWeight: '800',
-                      fontSize: '14px'
-                    }}>
-                      {friend.substring(0, 2).toUpperCase()}
+              {(Array.isArray(friendsData?.friends) ? friendsData.friends : []).map((friend) => {
+                const friendName = typeof friend === 'string' ? friend : (friend?.username || '');
+                return (
+                  <div key={friendName || Math.random()} style={{
+                    background: 'rgba(255, 255, 255, 0.04)',
+                    borderRadius: '16px',
+                    padding: '12px 14px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    border: '1px solid rgba(255, 255, 255, 0.06)'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div style={{
+                        width: '40px',
+                        height: '40px',
+                        borderRadius: '50%',
+                        background: 'linear-gradient(135deg, #0284c7 0%, #38bdf8 100%)',
+                        color: '#fff',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontWeight: '800',
+                        fontSize: '14px'
+                      }}>
+                        {getUserInitials(friendName)}
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '14px', fontWeight: '700', color: '#fff' }}>@{friendName}</div>
+                        <div style={{ fontSize: '11px', color: '#34d399' }}>صديق متصل ⚡</div>
+                      </div>
                     </div>
-                    <div>
-                      <div style={{ fontSize: '14px', fontWeight: '700', color: '#fff' }}>@{friend}</div>
-                      <div style={{ fontSize: '11px', color: '#34d399' }}>صديق متصل ⚡</div>
-                    </div>
-                  </div>
 
-                  <button
-                    onClick={() => handleOpenChat(friend)}
-                    className="ios-button-primary"
-                    style={{ padding: '8px 14px', fontSize: '12px', gap: '6px' }}
-                  >
-                    <MessageCircle size={14} />
-                    <span>دردشة 💬</span>
-                  </button>
-                </div>
-              ))}
+                    <button
+                      onClick={() => handleOpenChat(friendName)}
+                      className="ios-button-primary"
+                      style={{ padding: '8px 14px', fontSize: '12px', gap: '6px' }}
+                    >
+                      <MessageCircle size={14} />
+                      <span>دردشة 💬</span>
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
@@ -704,3 +722,4 @@ export default function FriendsTab({ showToast, onOpenUsernameModal }) {
     </div>
   );
 }
+
