@@ -147,7 +147,11 @@ export default function SettingsTab({ user, onLogout, showToast }) {
               <AppIconBadge size={64} radius={20} showBorder={true} />
               <div>
                 <div style={{ fontSize: '14px', fontWeight: '700', color: '#fff', marginBottom: '2px' }}>
-                  {customImg ? 'Custom User Photo' : (ICON_THEMES.find(t => t.id === activeThemeId)?.name || 'Default Icon')}
+                  {customImg === '/illustrator-3d.png'
+                    ? '3D Illustrator (الأيقونة المجسمة الجديدة)'
+                    : (customImg === '/app-icon.png' || !customImg)
+                    ? 'Classic Logo (download.jfif)'
+                    : 'Custom User Photo'}
                 </div>
                 <div style={{ fontSize: '11px', color: '#34d399', display: 'flex', alignItems: 'center', gap: '4px' }}>
                   <CheckCircle2 size={12} /> Active on your iPhone
