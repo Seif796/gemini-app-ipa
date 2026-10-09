@@ -1,29 +1,20 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Palette, Sparkles, Check, Bell, Upload, RotateCcw, Image, LogOut, CheckCircle2, Hourglass, Clock, ShieldAlert } from 'lucide-react';
-import { ICON_THEMES, getActiveTheme, setActiveTheme, getCustomIconImage, setCustomIconImage } from '../themeIcons';
+import React, { useState, useEffect } from 'react';
+import { Bell, LogOut, CheckCircle2, Hourglass, Clock, ShieldAlert } from 'lucide-react';
+import { getActiveTheme } from '../themeIcons';
 import { getScreenTimeData, saveScreenTimeData, formatMinutes, formatSeconds } from '../screenTime';
 import { notifications } from '../notifications';
 import AppIconBadge from './AppIconBadge';
 
 export default function SettingsTab({ user, onLogout, showToast }) {
-  const [activeThemeId, setActiveThemeId] = useState(getActiveTheme().id);
-  const [customImg, setCustomImg] = useState(getCustomIconImage());
   const [screenTime, setScreenTime] = useState(getScreenTimeData());
-  const fileInputRef = useRef(null);
 
   useEffect(() => {
-    const handleTheme = (e) => setActiveThemeId(e.detail?.id || getActiveTheme().id);
-    const handleImg = (e) => setCustomImg(e.detail);
     const handleSt = (e) => {
       if (e.detail) setScreenTime({ ...e.detail });
     };
 
-    window.addEventListener('seif-theme-changed', handleTheme);
-    window.addEventListener('seif-icon-image-changed', handleImg);
     window.addEventListener('seif-screentime-updated', handleSt);
     return () => {
-      window.removeEventListener('seif-theme-changed', handleTheme);
-      window.removeEventListener('seif-icon-image-changed', handleImg);
       window.removeEventListener('seif-screentime-updated', handleSt);
     };
   }, []);
@@ -34,43 +25,6 @@ export default function SettingsTab({ user, onLogout, showToast }) {
       saveScreenTimeData(updated);
       return updated;
     });
-  };
-
-  const handleSelectTheme = (themeId) => {
-    setCustomIconImage(null); // Clear custom image when selecting a preset theme
-    setCustomImg(null);
-    setActiveTheme(themeId);
-    setActiveThemeId(themeId);
-    showToast('App icon updated! 🎨', 'success');
-  };
-
-  const handleFileUpload = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (!file.type.startsWith('image/')) {
-      showToast('Please select a valid image file', 'error');
-      return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const base64 = event.target?.result;
-      if (base64) {
-        setCustomIconImage(base64);
-        setCustomImg(base64);
-        showToast('Custom App Icon uploaded & applied! 🖼️', 'success');
-      }
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const handleResetDefaultIcon = () => {
-    setCustomIconImage(null);
-    setCustomImg(null);
-    setActiveTheme('cosmic');
-    setActiveThemeId('cosmic');
-    showToast('Reset to default App Icon! 🔄', 'info');
   };
 
   const handleTestNotification = async () => {
@@ -123,211 +77,18 @@ export default function SettingsTab({ user, onLogout, showToast }) {
         </div>
 
         {/* 🎨 APP ICON CUSTOMIZER (Centerpiece) */}
-        <div className="glass-panel" style={{ padding: '18px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-            <Palette size={18} color="#c084fc" />
-            <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#fff' }}>App Icon (تغيير صورة وأيقونة التطبيق)</h3>
-          </div>
-          <p style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '16px', lineHeight: '1.4' }}>
-            Choose from custom designer icons below or upload your own personal photo/logo:
-          </p>
-
-          {/* Current Icon Preview Showcase */}
-          <div style={{
-            background: 'rgba(255, 255, 255, 0.03)',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
-            borderRadius: '20px',
-            padding: '16px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginBottom: '16px'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-              <AppIconBadge size={64} radius={20} showBorder={true} />
-              <div>
-                <div style={{ fontSize: '14px', fontWeight: '700', color: '#fff', marginBottom: '2px' }}>
-                  {customImg === '/illustrator-3d.png'
-                    ? '3D Illustrator (الأيقونة المجسمة الجديدة)'
-                    : (customImg === '/app-icon.png' || !customImg)
-                    ? 'Classic Logo (download.jfif)'
-                    : 'Custom User Photo'}
-                </div>
-                <div style={{ fontSize: '11px', color: '#34d399', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <CheckCircle2 size={12} /> Active on your iPhone
-                </div>
+        {/* 🎨 Official App Icon Display */}
+        <div className="glass-panel" style={{ padding: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <AppIconBadge size={56} radius={18} showBorder={true} />
+            <div>
+              <div style={{ fontSize: '15px', fontWeight: '700', color: '#fff', marginBottom: '2px' }}>
+                Seif Ai Test
+              </div>
+              <div style={{ fontSize: '12px', color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <CheckCircle2 size={13} /> الأيقونة الرسمية للتطبيق
               </div>
             </div>
-
-            {customImg && (
-              <button
-                onClick={handleResetDefaultIcon}
-                className="ios-button-secondary"
-                style={{ padding: '6px 10px', fontSize: '11px', gap: '4px' }}
-                title="Reset to default icon"
-              >
-                <RotateCcw size={12} />
-                <span>Reset</span>
-              </button>
-            )}
-          </div>
-
-          {/* Upload Custom Photo Button */}
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleFileUpload}
-            accept="image/*"
-            style={{ display: 'none' }}
-          />
-
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="ios-button-primary"
-            style={{
-              width: '100%',
-              marginBottom: '16px',
-              padding: '12px',
-              fontSize: '13px',
-              gap: '8px'
-            }}
-          >
-            <Upload size={16} />
-            <span>Upload Your Own Photo as App Icon (رفع صورتك للأيقونة)</span>
-          </button>
-
-          {/* Official Premium App Icons Selection */}
-          <div style={{ fontSize: '13px', fontWeight: '700', color: '#fff', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Sparkles size={14} color="#f59e0b" />
-            <span>Official Icons (اختر بين أيقونات التطبيق الرسمية):</span>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px', marginBottom: '16px' }}>
-            {/* Option 1: Original App Icon (download.jfif) */}
-            <div
-              onClick={() => {
-                setCustomIconImage('/app-icon.png');
-                setCustomImg('/app-icon.png');
-                showToast('Switched to Original App Icon! 🖼️', 'success');
-              }}
-              style={{
-                background: (customImg === '/app-icon.png' || !customImg) ? 'rgba(99, 102, 241, 0.2)' : 'rgba(255, 255, 255, 0.04)',
-                border: (customImg === '/app-icon.png' || !customImg) ? '2px solid #6366f1' : '1px solid rgba(255, 255, 255, 0.08)',
-                borderRadius: '16px',
-                padding: '12px',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                transition: 'all 0.2s'
-              }}
-            >
-              <img
-                src="/app-icon.png"
-                alt="Original Icon"
-                style={{ width: '40px', height: '40px', borderRadius: '12px', objectFit: 'cover' }}
-              />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: '12px', fontWeight: '700', color: '#fff' }}>Classic Logo</div>
-                <div style={{ fontSize: '10px', color: '#818cf8' }}>Original 1</div>
-              </div>
-              {(customImg === '/app-icon.png' || !customImg) && <Check size={16} color="#818cf8" strokeWidth={3} />}
-            </div>
-
-            {/* Option 2: 3D Adobe Illustrator Icon */}
-            <div
-              onClick={() => {
-                setCustomIconImage('/illustrator-3d.png');
-                setCustomImg('/illustrator-3d.png');
-                showToast('Switched to 3D Illustrator Icon! 🎨', 'success');
-              }}
-              style={{
-                background: customImg === '/illustrator-3d.png' ? 'rgba(245, 158, 11, 0.2)' : 'rgba(255, 255, 255, 0.04)',
-                border: customImg === '/illustrator-3d.png' ? '2px solid #f59e0b' : '1px solid rgba(255, 255, 255, 0.08)',
-                borderRadius: '16px',
-                padding: '12px',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                transition: 'all 0.2s'
-              }}
-            >
-              <img
-                src="/illustrator-3d.png"
-                alt="3D Illustrator Icon"
-                style={{ width: '40px', height: '40px', borderRadius: '12px', objectFit: 'cover' }}
-              />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: '12px', fontWeight: '700', color: '#fff' }}>3D Illustrator</div>
-                <div style={{ fontSize: '10px', color: '#fbbf24' }}>Premium 3D</div>
-              </div>
-              {customImg === '/illustrator-3d.png' && <Check size={16} color="#fbbf24" strokeWidth={3} />}
-            </div>
-          </div>
-
-          {/* iOS Note about Home Screen & In-App Icon */}
-          <div style={{
-            background: 'rgba(56, 189, 248, 0.08)',
-            border: '1px solid rgba(56, 189, 248, 0.2)',
-            borderRadius: '14px',
-            padding: '10px 14px',
-            marginBottom: '14px',
-            fontSize: '11px',
-            color: '#cbd5e1',
-            lineHeight: '1.5'
-          }}>
-            💡 <strong>ملاحظة هامة (Apple iOS):</strong> عند اختيار الأيقونة تتغير فوراً داخل التطبيق (في المحادثة والهيدر والبروفايل).
-            لتغيير أيقونة الشاشة الرئيسية من الخارج، يتيح نظام iOS ذلك أيضاً بنقرة عبر تطبيق <em>Shortcuts (الاختصارات)</em> في ثوانٍ.
-          </div>
-
-          {/* Designer Icons Grid */}
-          <div style={{ fontSize: '12px', fontWeight: '600', color: '#94a3b8', marginBottom: '8px' }}>
-            Or choose a color theme preset:
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
-            {ICON_THEMES.map((theme) => {
-              const isSelected = !customImg && activeThemeId === theme.id;
-              return (
-                <div
-                  key={theme.id}
-                  onClick={() => handleSelectTheme(theme.id)}
-                  style={{
-                    background: isSelected ? 'rgba(255, 255, 255, 0.12)' : 'rgba(255, 255, 255, 0.04)',
-                    border: isSelected ? `2px solid ${theme.primary}` : '1px solid rgba(255, 255, 255, 0.08)',
-                    borderRadius: '16px',
-                    padding: '12px',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '10px',
-                    transition: 'all 0.2s ease'
-                  }}
-                >
-                  <div style={{
-                    width: '36px',
-                    height: '36px',
-                    borderRadius: '12px',
-                    background: theme.gradient,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    boxShadow: `0 2px 10px ${theme.glow}`,
-                    flexShrink: 0
-                  }}>
-                    <Sparkles size={16} color="#fff" />
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: '12px', fontWeight: '600', color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {theme.name}
-                    </div>
-                    <div style={{ fontSize: '10px', color: '#64748b' }}>{theme.badge} Preset</div>
-                  </div>
-                  {isSelected && <Check size={14} color={theme.primary} />}
-                </div>
-              );
-            })}
           </div>
         </div>
 

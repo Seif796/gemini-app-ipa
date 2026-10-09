@@ -76,31 +76,6 @@
 			<key>UIPrerenderedIcon</key>
 			<false/>
 		</dict>
-		<key>CFBundleAlternateIcons</key>
-		<dict>
-			<key>IconIllustrator</key>
-			<dict>
-				<key>CFBundleIconFiles</key>
-				<array>
-					<string>IconIllustrator</string>
-					<string>IconIllustrator-60@2x</string>
-					<string>IconIllustrator-60@3x</string>
-				</array>
-				<key>UIPrerenderedIcon</key>
-				<false/>
-			</dict>
-			<key>IconClassic</key>
-			<dict>
-				<key>CFBundleIconFiles</key>
-				<array>
-					<string>IconClassic</string>
-					<string>IconClassic-60@2x</string>
-					<string>IconClassic-60@3x</string>
-				</array>
-				<key>UIPrerenderedIcon</key>
-				<false/>
-			</dict>
-		</dict>
 	</dict>
 	<key>CFBundleIcons~ipad</key>
 	<dict>
@@ -112,31 +87,6 @@
 			</array>
 			<key>UIPrerenderedIcon</key>
 			<false/>
-		</dict>
-		<key>CFBundleAlternateIcons</key>
-		<dict>
-			<key>IconIllustrator</key>
-			<dict>
-				<key>CFBundleIconFiles</key>
-				<array>
-					<string>IconIllustrator</string>
-					<string>IconIllustrator-60@2x</string>
-					<string>IconIllustrator-60@3x</string>
-				</array>
-				<key>UIPrerenderedIcon</key>
-				<false/>
-			</dict>
-			<key>IconClassic</key>
-			<dict>
-				<key>CFBundleIconFiles</key>
-				<array>
-					<string>IconClassic</string>
-					<string>IconClassic-60@2x</string>
-					<string>IconClassic-60@3x</string>
-				</array>
-				<key>UIPrerenderedIcon</key>
-				<false/>
-			</dict>
 		</dict>
 	</dict>
 	<key>NSCameraUsageDescription</key>
