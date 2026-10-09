@@ -230,21 +230,33 @@ export default function SettingsTab({ user, onLogout, showToast }) {
 
         {/* Notifications & Reminders Alert Card */}
         <div className="glass-panel" style={{ padding: '16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-            <Bell size={18} color="#38bdf8" />
-            <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#fff' }}>iPhone Notifications</h3>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Bell size={18} color="#38bdf8" />
+              <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#fff' }}>صوت ونغمة الإشعارات (Notification Sound)</h3>
+            </div>
+            <span style={{
+              fontSize: '11px',
+              padding: '2px 8px',
+              borderRadius: '8px',
+              background: 'rgba(56, 189, 248, 0.15)',
+              color: '#38bdf8',
+              fontWeight: '600'
+            }}>
+              Active 🔔
+            </span>
           </div>
           <p style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '12px', lineHeight: '1.4' }}>
-            Get sound alerts when Seif Ai Test responds in the background, or when you set a reminder (e.g. <em>"Remind me in 5 minutes to..."</em>).
+            نغمة إشعار كريستالية فخمة تعمل تلقائياً مع كل تذكير أو إشعار يصدره التطبيق.
           </p>
 
           <button
             onClick={handleTestNotification}
-            className="ios-button-secondary"
-            style={{ width: '100%', fontSize: '13px', padding: '10px' }}
+            className="ios-button-primary"
+            style={{ width: '100%', fontSize: '13px', padding: '11px', gap: '8px' }}
           >
-            <Bell size={15} />
-            <span>Test Notification Alert on iPhone</span>
+            <Bell size={16} />
+            <span>تجربة صوت الإشعار الآن (Test Notification Sound) 🔔</span>
           </button>
         </div>
       </div>
