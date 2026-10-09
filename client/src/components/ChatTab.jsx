@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Sparkles, Trash2, Copy, Check, Bot, Bell, Clock, Cpu } from 'lucide-react';
+import { Send, Sparkles, Trash2, Copy, Check, Bot, Bell, Clock, Cpu, ExternalLink, Power } from 'lucide-react';
 import { api } from '../api';
 import { notifications } from '../notifications';
 import { getActiveTheme } from '../themeIcons';
+import { openApp, closeCurrentApp, findAppByName } from '../appLauncher';
 import AppIconBadge from './AppIconBadge';
 
 const QUICK_PROMPTS = [
@@ -81,13 +82,38 @@ export default function ChatTab({ showToast }) {
       const res = await api.chat(text.trim(), history, model);
 
       let cleanContent = res.reply;
+      let appAction = null;
+
+      // Detect & process OPEN_APP command
+      const openAppMatch = res.reply.match(/\[OPEN_APP:\s*(.*?)\]/i);
+      if (openAppMatch) {
+        const requestedApp = openAppMatch[1].trim();
+        cleanContent = cleanContent.replace(/\[OPEN_APP:.*?\]/i, '').trim();
+        const appInfo = findAppByName(requestedApp);
+        appAction = { type: 'open', target: requestedApp, info: appInfo };
+        showToast(`Opening ${appInfo ? appInfo.name : requestedApp}... 🚀`, 'info');
+        setTimeout(() => {
+          openApp(requestedApp);
+        }, 600);
+      }
+
+      // Detect & process CLOSE_APP command
+      const closeAppMatch = res.reply.match(/\[CLOSE_APP:\s*(.*?)\]/i);
+      if (closeAppMatch) {
+        cleanContent = cleanContent.replace(/\[CLOSE_APP:.*?\]/i, '').trim();
+        appAction = { type: 'close' };
+        showToast('Closing application... 👋', 'info');
+        setTimeout(() => {
+          closeCurrentApp();
+        }, 1200);
+      }
 
       // Detect & process AI Reminders
       const reminderMatch = res.reply.match(/\[REMINDER:\s*(\d+)\s*\|\s*(.*?)\]/i);
       if (reminderMatch) {
         const delaySeconds = parseInt(reminderMatch[1], 10) || 60;
         const reminderText = reminderMatch[2].trim();
-        cleanContent = res.reply.replace(/\[REMINDER:.*?\]/i, '').trim();
+        cleanContent = cleanContent.replace(/\[REMINDER:.*?\]/i, '').trim();
 
         // Schedule notification & task
         await notifications.scheduleReminder(reminderText, delaySeconds);
@@ -112,7 +138,8 @@ export default function ChatTab({ showToast }) {
         id: 'ai_' + Date.now(),
         role: 'model',
         content: cleanContent,
-        model: res.model
+        model: res.model,
+        appAction
       };
 
       setMessages((prev) => [...prev, aiMsg]);
@@ -265,6 +292,55 @@ export default function ChatTab({ showToast }) {
                   }}
                 >
                   {msg.content}
+
+                  {msg.appAction?.type === 'open' && (
+                    <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: '1px solid rgba(255, 255, 255, 0.1)' }}>
+                      <button
+                        onClick={() => openApp(msg.appAction.target)}
+                        style={{
+                          background: 'linear-gradient(135deg, #3b82f6, #6366f1)',
+                          border: 'none',
+                          color: '#fff',
+                          borderRadius: '10px',
+                          padding: '6px 12px',
+                          fontSize: '12px',
+                          fontWeight: '600',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          cursor: 'pointer',
+                          boxShadow: '0 2px 8px rgba(59, 130, 246, 0.3)'
+                        }}
+                      >
+                        <ExternalLink size={13} />
+                        <span>Open {msg.appAction.info ? msg.appAction.info.name : msg.appAction.target}</span>
+                      </button>
+                    </div>
+                  )}
+
+                  {msg.appAction?.type === 'close' && (
+                    <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: '1px solid rgba(255, 255, 255, 0.1)' }}>
+                      <button
+                        onClick={() => closeCurrentApp()}
+                        style={{
+                          background: 'rgba(239, 68, 68, 0.25)',
+                          border: '1px solid rgba(239, 68, 68, 0.4)',
+                          color: '#fca5a5',
+                          borderRadius: '10px',
+                          padding: '6px 12px',
+                          fontSize: '12px',
+                          fontWeight: '600',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <Power size={13} />
+                        <span>Close App (خروج)</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {!isUser && (

@@ -50,5 +50,20 @@
 		<key>NSAllowsArbitraryLoads</key>
 		<true/>
 	</dict>
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>whatsapp</string>
+		<string>tg</string>
+		<string>instagram</string>
+		<string>twitter</string>
+		<string>fb</string>
+		<string>tiktok</string>
+		<string>snapchat</string>
+		<string>youtube</string>
+		<string>spotify</string>
+		<string>maps</string>
+		<string>comgooglemaps</string>
+		<string>facetime</string>
+	</array>
 </dict>
 </plist>
