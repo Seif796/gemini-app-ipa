@@ -1,17 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Sparkles, Trash2, Copy, Check, Bot, Bell, Clock, Cpu, ExternalLink, Power } from 'lucide-react';
+import { Send, Sparkles, Trash2, Copy, Check, Bot, Bell, Clock, Cpu, ExternalLink, Power, Mic, MicOff, Camera, Image as ImageIcon, Volume2, X } from 'lucide-react';
 import { api } from '../api';
 import { notifications } from '../notifications';
 import { getActiveTheme } from '../themeIcons';
 import { openApp, closeCurrentApp, findAppByName } from '../appLauncher';
 import AppIconBadge from './AppIconBadge';
-
-const QUICK_PROMPTS = [
-  '⏰ Remind me in 10 minutes to take a break',
-  '☀️ Plan my morning schedule',
-  '🎯 Prioritize my 3 top goals today',
-  '💡 Brainstorm 5 productivity habits'
-];
 
 export default function ChatTab({ showToast }) {
   const [messages, setMessages] = useState([]);
@@ -20,11 +13,45 @@ export default function ChatTab({ showToast }) {
   const [model, setModel] = useState('gemini-flash-lite-latest');
   const [copiedId, setCopiedId] = useState(null);
   const [theme, setTheme] = useState(getActiveTheme());
+  const [selectedImage, setSelectedImage] = useState(null); // base64 image for Gemini Vision
+  const [isListening, setIsListening] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const fileInputRef = useRef(null);
+  const recognitionRef = useRef(null);
   const chatEndRef = useRef(null);
 
   useEffect(() => {
     loadChatHistory();
     notifications.init();
+
+    // Initialize Web Speech Recognition if available on iPhone / Safari
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.lang = 'ar-SA'; // Primary Arabic, also supports English
+
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        if (transcript) {
+          setInput((prev) => (prev ? `${prev} ${transcript}` : transcript));
+          showToast('🎙️ صوتك اتسجل بنجاح!', 'info');
+        }
+        setIsListening(false);
+      };
+
+      recognition.onerror = () => {
+        setIsListening(false);
+        showToast('تعذر التقاط الصوت، حاول ثانية', 'warning');
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      recognitionRef.current = recognition;
+    }
 
     const handleThemeChange = (e) => {
       if (e.detail) setTheme(e.detail);
@@ -32,6 +59,66 @@ export default function ChatTab({ showToast }) {
     window.addEventListener('seif-theme-changed', handleThemeChange);
     return () => window.removeEventListener('seif-theme-changed', handleThemeChange);
   }, []);
+
+  const toggleSpeechRecognition = () => {
+    if (!recognitionRef.current) {
+      showToast('خاصية الصوت غير مدعومة في هذا المتصفح', 'warning');
+      return;
+    }
+
+    if (isListening) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+    } else {
+      try {
+        recognitionRef.current.start();
+        setIsListening(true);
+        showToast('🎙️ اتكلم دلوقتي وسامعك...', 'info');
+      } catch (err) {
+        setIsListening(false);
+      }
+    }
+  };
+
+  const speakText = (text) => {
+    if (!('speechSynthesis' in window)) return;
+    if (isSpeaking) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+      return;
+    }
+
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text.replace(/[*#_`]/g, ''));
+    // Detect Arabic
+    const isArabic = /[\u0600-\u06FF]/.test(text);
+    utterance.lang = isArabic ? 'ar-SA' : 'en-US';
+    utterance.rate = 1.0;
+    utterance.pitch = 1.0;
+
+    utterance.onstart = () => setIsSpeaking(true);
+    utterance.onend = () => setIsSpeaking(false);
+    utterance.onerror = () => setIsSpeaking(false);
+
+    window.speechSynthesis.speak(utterance);
+  };
+
+  const handleImagePick = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      showToast('من فضلك اختر صورة صحيحة', 'error');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setSelectedImage(event.target.result);
+      showToast('📸 تم إرفاق الصورة! اسألني عنها أو قولي حلها', 'success');
+    };
+    reader.readAsDataURL(file);
+  };
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -58,20 +145,25 @@ export default function ChatTab({ showToast }) {
 
   const handleSend = async (textToSend) => {
     const text = textToSend || input;
-    if (!text.trim() || loading) return;
+    const currentImg = selectedImage;
+    if ((!text.trim() && !currentImg) || loading) return;
 
     // Ask notification permission on first interaction
     notifications.requestPermission().catch(() => {});
 
+    const promptText = text.trim() || (currentImg ? 'من فضلك افحص هذه الصورة، وحل المسألة أو اشرح المكتوب فيها بالتفصيل وبشكل مبسط.' : '');
+
     const userMsg = {
       id: 'usr_' + Date.now(),
       role: 'user',
-      content: text.trim()
+      content: promptText,
+      image: currentImg
     };
 
     setMessages((prev) => [...prev, userMsg]);
     api.saveChatMessage(userMsg);
     setInput('');
+    setSelectedImage(null);
     setLoading(true);
 
     try {
@@ -79,7 +171,7 @@ export default function ChatTab({ showToast }) {
         .filter((m) => m.id !== 'welcome')
         .map((m) => ({ role: m.role, content: m.content }));
 
-      const res = await api.chat(text.trim(), history, model);
+      const res = await api.chat(promptText, history, model, currentImg);
 
       let cleanContent = res.reply;
       let appAction = null;
@@ -109,23 +201,35 @@ export default function ChatTab({ showToast }) {
       }
 
       // Detect & process AI Reminders
-      const reminderMatch = res.reply.match(/\[REMINDER:\s*(\d+)\s*\|\s*(.*?)\]/i);
+      let reminderMatch = res.reply.match(/\[REMINDER:\s*(\d+)\s*\|\s*(.*?)\]/i);
+      
+      // Fallback: If AI confirmed reminder in Arabic or English text but missed the exact tag
+      if (!reminderMatch) {
+        const arabicMinuteMatch = text.match(/فكرني\s+(?:بعد|كمان)?\s*(\d+)\s*(?:دقيقة|دقايق|دقائق)/i);
+        const englishMinuteMatch = text.match(/remind\s+(?:me)?\s+(?:in)?\s*(\d+)\s*(?:min|minute|minutes)/i);
+        const matchedMinutes = arabicMinuteMatch?.[1] || englishMinuteMatch?.[1];
+        if (matchedMinutes) {
+          const delaySec = parseInt(matchedMinutes, 10) * 60;
+          reminderMatch = ['fallback', String(delaySec), text];
+        }
+      }
+
       if (reminderMatch) {
         const delaySeconds = parseInt(reminderMatch[1], 10) || 60;
         const reminderText = reminderMatch[2].trim();
         cleanContent = cleanContent.replace(/\[REMINDER:.*?\]/i, '').trim();
 
-        // Schedule notification & task
+        // Schedule guaranteed notification & task
         await notifications.scheduleReminder(reminderText, delaySeconds);
         await api.saveTask({
-          title: `⏰ Reminder: ${reminderText}`,
-          description: `Scheduled alert set for ${new Date(Date.now() + delaySeconds * 1000).toLocaleTimeString()}`,
+          title: `⏰ تذكير: ${reminderText}`,
+          description: `تنبيه مجدول لوقت ${new Date(Date.now() + delaySeconds * 1000).toLocaleTimeString()}`,
           priority: 'high',
           completed: false
         });
 
         const mins = Math.max(1, Math.round(delaySeconds / 60));
-        showToast(`⏰ Reminder set for ${mins} min from now!`, 'success');
+        showToast(`⏰ تم ضبط التنبيه بعد ${mins} دقيقة بنجاح! 🔔`, 'success');
       }
 
       // If user is currently in another tab or app, send a notification alert!
@@ -281,6 +385,12 @@ export default function ChatTab({ showToast }) {
                     wordBreak: 'break-word'
                   }}
                 >
+                  {msg.image && (
+                    <div style={{ marginBottom: '8px', borderRadius: '12px', overflow: 'hidden', maxWidth: '240px' }}>
+                      <img src={msg.image} alt="User upload" style={{ width: '100%', height: 'auto', display: 'block' }} />
+                    </div>
+                  )}
+
                   {msg.content}
 
                   {msg.appAction?.type === 'open' && (
@@ -334,7 +444,7 @@ export default function ChatTab({ showToast }) {
                 </div>
 
                 {!isUser && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px', paddingLeft: '4px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px', paddingLeft: '4px' }}>
                     <button
                       onClick={() => copyToClipboard(msg.id, msg.content)}
                       style={{
@@ -352,6 +462,26 @@ export default function ChatTab({ showToast }) {
                       {copiedId === msg.id ? <Check size={12} /> : <Copy size={12} />}
                       <span>{copiedId === msg.id ? 'Copied' : 'Copy'}</span>
                     </button>
+
+                    <button
+                      onClick={() => speakText(msg.content)}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: isSpeaking ? '#38bdf8' : '#64748b',
+                        cursor: 'pointer',
+                        padding: '2px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        fontSize: '11px'
+                      }}
+                      title="استمع للرد بالصوت"
+                    >
+                      <Volume2 size={13} />
+                      <span>{isSpeaking ? 'Listening...' : 'نطق'}</span>
+                    </button>
+
                     {msg.model && (
                       <span style={{ fontSize: '10px', color: '#64748b' }}>• ⚡ Fast AI</span>
                     )}
@@ -393,58 +523,119 @@ export default function ChatTab({ showToast }) {
         <div ref={chatEndRef} />
       </div>
 
-      {/* Quick Prompts Chips */}
-      {messages.length <= 2 && (
+      {/* Selected Image Thumbnail Preview before sending */}
+      {selectedImage && (
         <div style={{
-          padding: '0 16px 8px',
+          padding: '6px 16px',
+          background: 'rgba(15, 23, 42, 0.95)',
+          borderTop: '1px solid rgba(255, 255, 255, 0.1)',
           display: 'flex',
-          gap: '8px',
-          overflowX: 'auto',
-          scrollbarWidth: 'none'
+          alignItems: 'center',
+          gap: '10px'
         }}>
-          {QUICK_PROMPTS.map((prompt, idx) => (
+          <div style={{ position: 'relative', width: '48px', height: '48px', borderRadius: '10px', overflow: 'hidden', border: '1.5px solid #38bdf8' }}>
+            <img src={selectedImage} alt="Selected preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             <button
-              key={idx}
-              onClick={() => handleSend(prompt)}
+              onClick={() => setSelectedImage(null)}
               style={{
-                flexShrink: 0,
-                background: 'rgba(255, 255, 255, 0.05)',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
-                color: '#cbd5e1',
-                padding: '6px 12px',
-                borderRadius: '16px',
-                fontSize: '12px',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap'
+                position: 'absolute',
+                top: '2px',
+                right: '2px',
+                background: 'rgba(0, 0, 0, 0.7)',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '50%',
+                width: '18px',
+                height: '18px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer'
               }}
             >
-              {prompt}
+              <X size={12} />
             </button>
-          ))}
+          </div>
+          <div style={{ fontSize: '12px', color: '#38bdf8', fontWeight: '600' }}>
+            📸 صورة مرفقة لحلها وشرحها بالذكاء الاصطناعي
+          </div>
         </div>
       )}
 
       {/* Input Dock */}
       <div style={{
-        padding: '8px 16px calc(var(--safe-bottom) + 64px) 16px',
-        background: 'rgba(9, 10, 15, 0.92)',
-        borderTop: '1px solid rgba(255, 255, 255, 0.06)'
+        padding: '8px 12px calc(var(--safe-bottom) + 64px) 12px',
+        background: 'rgba(9, 10, 15, 0.95)',
+        borderTop: '1px solid rgba(255, 255, 255, 0.08)'
       }}>
+        {/* Hidden File Input for Camera / Gallery */}
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleImagePick}
+          accept="image/*"
+          style={{ display: 'none' }}
+        />
+
         <form
           onSubmit={(e) => { e.preventDefault(); handleSend(); }}
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '8px',
-            background: 'rgba(255, 255, 255, 0.07)',
+            gap: '6px',
+            background: 'rgba(255, 255, 255, 0.06)',
             borderRadius: '24px',
-            padding: '4px 6px 4px 16px',
-            border: '1px solid rgba(255, 255, 255, 0.1)'
+            padding: '4px 6px 4px 10px',
+            border: '1px solid rgba(255, 255, 255, 0.12)'
           }}
         >
+          {/* Camera / Image Pick Button */}
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            title="صور مسألة أو صفحة بالكاميرا"
+            style={{
+              background: selectedImage ? 'rgba(56, 189, 248, 0.2)' : 'transparent',
+              border: 'none',
+              borderRadius: '50%',
+              width: '32px',
+              height: '32px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              color: selectedImage ? '#38bdf8' : '#94a3b8'
+            }}
+          >
+            <Camera size={18} />
+          </button>
+
+          {/* Voice Mic Button */}
+          <button
+            type="button"
+            onClick={toggleSpeechRecognition}
+            title="تحدث بالصوت"
+            style={{
+              background: isListening ? 'rgba(239, 68, 68, 0.25)' : 'transparent',
+              border: isListening ? '1px solid #ef4444' : 'none',
+              borderRadius: '50%',
+              width: '32px',
+              height: '32px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              color: isListening ? '#f87171' : '#94a3b8',
+              animation: isListening ? 'pulse 1s infinite alternate' : 'none'
+            }}
+          >
+            <Mic size={18} />
+          </button>
+
+          {/* Text Input */}
           <input
             type="text"
-            placeholder="Ask Seif Ai Test or say 'Remind me in 5m to...'"
+            placeholder={isListening ? 'سامعك... اتكلم' : 'اسأل، حل مسألة، أو قولي "فكرني بعد 5 دقايق"...'}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             disabled={loading}
@@ -453,28 +644,31 @@ export default function ChatTab({ showToast }) {
               background: 'transparent',
               border: 'none',
               color: '#ffffff',
-              fontSize: '14px',
-              outline: 'none'
+              fontSize: '13px',
+              outline: 'none',
+              padding: '6px 4px'
             }}
           />
+
+          {/* Send Button */}
           <button
             type="submit"
-            disabled={!input.trim() || loading}
+            disabled={(!input.trim() && !selectedImage) || loading}
             style={{
-              width: '38px',
-              height: '38px',
+              width: '36px',
+              height: '36px',
               borderRadius: '50%',
-              background: input.trim() ? theme.gradient : 'rgba(255, 255, 255, 0.1)',
+              background: (input.trim() || selectedImage) ? theme.gradient : 'rgba(255, 255, 255, 0.1)',
               border: 'none',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              cursor: input.trim() ? 'pointer' : 'default',
-              boxShadow: input.trim() ? `0 2px 10px ${theme.glow}` : 'none',
+              cursor: (input.trim() || selectedImage) ? 'pointer' : 'default',
+              boxShadow: (input.trim() || selectedImage) ? `0 2px 10px ${theme.glow}` : 'none',
               transition: 'all 0.2s'
             }}
           >
-            <Send size={16} color={input.trim() ? '#ffffff' : '#64748b'} />
+            <Send size={15} color={(input.trim() || selectedImage) ? '#ffffff' : '#64748b'} />
           </button>
         </form>
       </div>

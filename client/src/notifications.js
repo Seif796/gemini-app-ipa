@@ -36,58 +36,72 @@ class NotificationService {
     return false;
   }
 
+  async ensurePermission() {
+    if (this.hasPermission) return true;
+    return await this.requestPermission();
+  }
+
   async sendNow(title, body) {
+    await this.ensurePermission();
     try {
       await LocalNotifications.schedule({
         notifications: [
           {
             title: title || 'Seif Ai Test',
-            body: body,
-            id: Math.floor(Date.now() % 100000),
-            schedule: { at: new Date(Date.now() + 100) },
-            sound: 'beep.wav'
+            body: body || 'You have a new message!',
+            id: Math.floor(Math.random() * 100000) + 1,
+            schedule: { at: new Date(Date.now() + 200) },
+            sound: 'default'
           }
         ]
       });
       return;
     } catch (e) {
-      // Fallback to Web Notification API
       if ('Notification' in window && Notification.permission === 'granted') {
         new Notification(title || 'Seif Ai Test', {
           body,
-          icon: '/logo.svg'
+          icon: '/app-icon.png'
         });
       }
     }
   }
 
-  async scheduleReminder(title, delaySeconds) {
-    const fireDate = new Date(Date.now() + delaySeconds * 1000);
-    const id = Math.floor(Date.now() % 100000);
+  async scheduleReminder(title, delaySeconds = 60) {
+    await this.ensurePermission();
+    const safeDelay = Math.max(1, delaySeconds);
+    const fireDate = new Date(Date.now() + safeDelay * 1000);
+    const id = Math.floor(Math.random() * 100000) + 1;
 
     try {
       await LocalNotifications.schedule({
         notifications: [
           {
-            title: '⏰ Reminder from Seif Ai Test',
+            title: '⏰ تذكير مهم من Seif Ai Test',
             body: title,
             id,
             schedule: { at: fireDate },
-            sound: 'beep.wav'
+            sound: 'default'
           }
         ]
       });
+      console.log(`Scheduled reminder for ${fireDate.toLocaleTimeString()}`);
     } catch (e) {
-      // Web timeout fallback
-      setTimeout(() => {
-        if ('Notification' in window && Notification.permission === 'granted') {
-          new Notification('⏰ Reminder from Seif Ai Test', {
-            body: title,
-            icon: '/logo.svg'
-          });
-        }
-      }, delaySeconds * 1000);
+      console.warn('Native LocalNotifications fallback to setTimeout:', e);
     }
+
+    // Always keep an active JS setTimeout backup for guaranteed reliability
+    setTimeout(() => {
+      if ('Notification' in window && Notification.permission === 'granted') {
+        new Notification('⏰ تذكير مهم من Seif Ai Test', {
+          body: title,
+          icon: '/app-icon.png'
+        });
+      }
+      try {
+        const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+        audio.play().catch(() => {});
+      } catch (err) {}
+    }, safeDelay * 1000);
 
     return { id, fireDate };
   }

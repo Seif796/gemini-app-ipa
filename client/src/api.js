@@ -52,8 +52,8 @@ export function setGuestMode(active) {
   }
 }
 
-// Direct client-side Gemini API call (Always works directly on iPhone)
-async function directGeminiCall(prompt, systemInstruction = '', history = [], model = 'gemini-flash-lite-latest') {
+// Direct client-side Gemini API call with Vision & Multimodal Image support
+async function directGeminiCall(prompt, systemInstruction = '', history = [], model = 'gemini-flash-lite-latest', imageBase64 = null) {
   const key = getCustomApiKey() || DEFAULT_CLIENT_KEY;
   const safeModel = (model.includes('2.0') || model.includes('1.5')) ? 'gemini-flash-lite-latest' : model;
 
@@ -66,7 +66,23 @@ async function directGeminiCall(prompt, systemInstruction = '', history = [], mo
       });
     }
   }
-  contents.push({ role: 'user', parts: [{ text: prompt }] });
+
+  const userParts = [{ text: prompt }];
+
+  // If user provided an image (camera/gallery), attach as inlineData
+  if (imageBase64) {
+    const cleanBase64 = imageBase64.replace(/^data:image\/[a-z]+;base64,/, '');
+    const mimeMatch = imageBase64.match(/^data:(image\/[a-z]+);base64,/i);
+    const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+    userParts.unshift({
+      inlineData: {
+        mimeType: mimeType,
+        data: cleanBase64
+      }
+    });
+  }
+
+  contents.push({ role: 'user', parts: userParts });
 
   const body = {
     contents,
@@ -83,14 +99,15 @@ Answer helpfully, concisely, and with clean formatting.
 Special Device Commands:
 1. When the user asks you to OPEN an app (e.g. "افتح واتساب", "open instagram", "شغل اليوتيوب", "open camera", "open spotify", "open safari", "افتح تليجرام", "open settings", etc.), confirm happily and ALWAYS append this tag at the very end of your response:
 [OPEN_APP: <app_name>]
-(Examples: [OPEN_APP: whatsapp], [OPEN_APP: instagram], [OPEN_APP: youtube], [OPEN_APP: telegram], [OPEN_APP: twitter], [OPEN_APP: spotify], [OPEN_APP: camera], [OPEN_APP: settings], [OPEN_APP: safari])
 
 2. When the user asks you to CLOSE or QUIT an app (e.g. "اقفل التطبيق", "close app", "اقفل البرنامج", "اخرج من هنا", "quit"):
 Confirm politely and append this tag at the very end:
 [CLOSE_APP: current]
 
-3. If the user asks for a reminder (e.g. "remind me in 5 minutes to X" or "فكرني بعد 10 دقايق بـ..."):
-Confirm politely and ALWAYS append:
+3. If the user asks for a reminder in Arabic or English:
+(Examples: "فكرني كمان 5 دقايق", "فكرني بعد دقيقة", "فكرني بعد ساعة", "remind me in 10 minutes to do homework", "فكرني اصلي كمان ربع ساعة", "فكرني بكره الصبح"):
+You MUST calculate the delay in seconds (e.g. 1 minute = 60, 5 minutes = 300, 10 minutes = 600, 15 minutes = 900, 1 hour = 3600).
+Confirm politely in Arabic or English that you set the reminder, and ALWAYS append this tag at the very end of your message:
 [REMINDER: <delaySeconds> | <reminder title>]`;
 
   body.systemInstruction = { parts: [{ text: reminderInstruction }] };
@@ -187,10 +204,10 @@ export const api = {
     });
   },
 
-  // AI Chat (Direct device fallback ensures 100% success on iPhone)
-  async chat(message, history = [], model = 'gemini-flash-lite-latest') {
+  // AI Chat with text, history, and image support (Direct device fallback ensures 100% success on iPhone)
+  async chat(message, history = [], model = 'gemini-flash-lite-latest', imageBase64 = null) {
     try {
-      if (!isGuestMode()) {
+      if (!isGuestMode() && !imageBase64) {
         const res = await request('/api/ai/chat', {
           method: 'POST',
           body: JSON.stringify({ message, history, model })
@@ -202,7 +219,7 @@ export const api = {
     }
 
     // Direct Gemini call straight from iPhone
-    return directGeminiCall(message, '', history, model);
+    return directGeminiCall(message, '', history, model, imageBase64);
   },
 
   async breakdownTask(title, description) {
