@@ -192,9 +192,79 @@ export default function SettingsTab({ user, onLogout, showToast }) {
             <span>Upload Your Own Photo as App Icon (رفع صورتك للأيقونة)</span>
           </button>
 
+          {/* Official Premium App Icons Selection */}
+          <div style={{ fontSize: '13px', fontWeight: '700', color: '#fff', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <Sparkles size={14} color="#f59e0b" />
+            <span>Official Icons (اختر بين أيقونات التطبيق الرسمية):</span>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px', marginBottom: '16px' }}>
+            {/* Option 1: Original App Icon (download.jfif) */}
+            <div
+              onClick={() => {
+                setCustomIconImage('/app-icon.png');
+                setCustomImg('/app-icon.png');
+                showToast('Switched to Original App Icon! 🖼️', 'success');
+              }}
+              style={{
+                background: (customImg === '/app-icon.png' || !customImg) ? 'rgba(99, 102, 241, 0.2)' : 'rgba(255, 255, 255, 0.04)',
+                border: (customImg === '/app-icon.png' || !customImg) ? '2px solid #6366f1' : '1px solid rgba(255, 255, 255, 0.08)',
+                borderRadius: '16px',
+                padding: '12px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                transition: 'all 0.2s'
+              }}
+            >
+              <img
+                src="/app-icon.png"
+                alt="Original Icon"
+                style={{ width: '40px', height: '40px', borderRadius: '12px', objectFit: 'cover' }}
+              />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: '12px', fontWeight: '700', color: '#fff' }}>Classic Logo</div>
+                <div style={{ fontSize: '10px', color: '#818cf8' }}>Original 1</div>
+              </div>
+              {(customImg === '/app-icon.png' || !customImg) && <Check size={16} color="#818cf8" strokeWidth={3} />}
+            </div>
+
+            {/* Option 2: 3D Adobe Illustrator Icon */}
+            <div
+              onClick={() => {
+                setCustomIconImage('/illustrator-3d.png');
+                setCustomImg('/illustrator-3d.png');
+                showToast('Switched to 3D Illustrator Icon! 🎨', 'success');
+              }}
+              style={{
+                background: customImg === '/illustrator-3d.png' ? 'rgba(245, 158, 11, 0.2)' : 'rgba(255, 255, 255, 0.04)',
+                border: customImg === '/illustrator-3d.png' ? '2px solid #f59e0b' : '1px solid rgba(255, 255, 255, 0.08)',
+                borderRadius: '16px',
+                padding: '12px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                transition: 'all 0.2s'
+              }}
+            >
+              <img
+                src="/illustrator-3d.png"
+                alt="3D Illustrator Icon"
+                style={{ width: '40px', height: '40px', borderRadius: '12px', objectFit: 'cover' }}
+              />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: '12px', fontWeight: '700', color: '#fff' }}>3D Illustrator</div>
+                <div style={{ fontSize: '10px', color: '#fbbf24' }}>Premium 3D</div>
+              </div>
+              {customImg === '/illustrator-3d.png' && <Check size={16} color="#fbbf24" strokeWidth={3} />}
+            </div>
+          </div>
+
           {/* Designer Icons Grid */}
           <div style={{ fontSize: '12px', fontWeight: '600', color: '#94a3b8', marginBottom: '8px' }}>
-            Or choose a designer icon theme:
+            Or choose a color theme preset:
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
