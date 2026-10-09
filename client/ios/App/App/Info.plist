@@ -139,5 +139,15 @@
 			</dict>
 		</dict>
 	</dict>
+	<key>NSCameraUsageDescription</key>
+	<string>التطبيق يحتاج إلى الكاميرا لالتقاط وحل المسائل والمستندات فورياً.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>التطبيق يحتاج للوصول إلى ألبوم الصور لاختيار وحل المسائل والصور.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>التطبيق يحتاج إذن لحفظ الصور في ألبوم الصور.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>التطبيق يحتاج إذن الميكروفون للتحدث الصوتي مع المساعد الذكي.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>التطبيق يحتاج إذن التعرف على الصوت لتحويل كلامك إلى نصوص فورية.</string>
 </dict>
 </plist>

@@ -11,6 +11,8 @@
     "cap:add": "cap add ios"
   },
   "dependencies": {
+    "@capacitor-community/speech-recognition": "^7.0.1",
+    "@capacitor/camera": "^7.0.5",
     "@capacitor/core": "^7.0.1",
     "@capacitor/ios": "^7.0.1",
     "@capacitor/local-notifications": "^7.0.7",

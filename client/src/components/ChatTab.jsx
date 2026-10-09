@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Sparkles, Trash2, Copy, Check, Bot, Bell, Clock, Cpu, ExternalLink, Power, Mic, MicOff, Camera, Image as ImageIcon, Volume2, X } from 'lucide-react';
+import { Send, Sparkles, Trash2, Copy, Check, Bot, Bell, Clock, Cpu, ExternalLink, Power, Mic, MicOff, Camera as CameraIcon, Image as ImageIcon, Volume2, X } from 'lucide-react';
+import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
+import { SpeechRecognition } from '@capacitor-community/speech-recognition';
+import { Capacitor } from '@capacitor/core';
 import { api } from '../api';
 import { notifications } from '../notifications';
 import { getActiveTheme } from '../themeIcons';
@@ -60,24 +63,94 @@ export default function ChatTab({ showToast }) {
     return () => window.removeEventListener('seif-theme-changed', handleThemeChange);
   }, []);
 
-  const toggleSpeechRecognition = () => {
-    if (!recognitionRef.current) {
-      showToast('خاصية الصوت غير مدعومة في هذا المتصفح', 'warning');
+  const toggleSpeechRecognition = async () => {
+    if (isListening) {
+      try {
+        if (Capacitor.isNativePlatform()) {
+          await SpeechRecognition.stop();
+        } else if (recognitionRef.current) {
+          recognitionRef.current.stop();
+        }
+      } catch (e) {
+        console.warn('Error stopping speech:', e);
+      }
+      setIsListening(false);
       return;
     }
 
-    if (isListening) {
-      recognitionRef.current.stop();
-      setIsListening(false);
-    } else {
+    // 1. Native iOS/Android Speech Recognition via Capacitor
+    if (Capacitor.isNativePlatform()) {
+      try {
+        const { available } = await SpeechRecognition.available();
+        if (!available) {
+          showToast('يرجى تفعيل الإملاء الصوتي (Dictation) في إعدادات الهاتف', 'warning');
+          return;
+        }
+
+        const perm = await SpeechRecognition.checkPermissions();
+        if (perm.speechRecognition !== 'granted') {
+          const req = await SpeechRecognition.requestPermissions();
+          if (req.speechRecognition !== 'granted') {
+            showToast('يرجى السماح بصلاحية الميكروفون والتعرف على الصوت', 'warning');
+            return;
+          }
+        }
+
+        setIsListening(true);
+        showToast('🎙️ اتكلم دلوقتي وسامعك...', 'info');
+
+        await SpeechRecognition.removeAllListeners();
+
+        await SpeechRecognition.addListener('partialResults', (data) => {
+          if (data?.matches?.length > 0) {
+            setInput(data.matches[0]);
+          }
+        });
+
+        await SpeechRecognition.addListener('listeningState', (data) => {
+          if (data.status === 'stopped') {
+            setIsListening(false);
+          }
+        });
+
+        const res = await SpeechRecognition.start({
+          language: 'ar-SA',
+          maxResults: 2,
+          prompt: 'تحدث الآن...',
+          partialResults: true,
+          popup: false
+        });
+
+        if (res?.matches?.length > 0) {
+          setInput(res.matches[0]);
+        }
+        setIsListening(false);
+        return;
+      } catch (err) {
+        console.warn('Native speech recognition failed:', err);
+        setIsListening(false);
+        const msg = err?.message || '';
+        if (!msg.toLowerCase().includes('cancel')) {
+          showToast('تعذر التعرف على الصوت، جرب التحدث مرة أخرى', 'warning');
+        }
+        return;
+      }
+    }
+
+    // 2. Web Speech Recognition fallback for Safari / Chrome
+    if (recognitionRef.current) {
       try {
         recognitionRef.current.start();
         setIsListening(true);
         showToast('🎙️ اتكلم دلوقتي وسامعك...', 'info');
       } catch (err) {
         setIsListening(false);
+        showToast('تعذر تشغيل الميكروفون، حاول مرة أخرى', 'warning');
       }
+      return;
     }
+
+    showToast('خاصية التعرف على الصوت غير مدعومة في هذا المتصفح', 'warning');
   };
 
   const speakText = (text) => {
@@ -101,6 +174,32 @@ export default function ChatTab({ showToast }) {
     utterance.onerror = () => setIsSpeaking(false);
 
     window.speechSynthesis.speak(utterance);
+  };
+
+  const handleCameraClick = async () => {
+    try {
+      const photo = await Camera.getPhoto({
+        quality: 85,
+        allowEditing: false,
+        resultType: CameraResultType.DataUrl,
+        source: CameraSource.Prompt // Gives native iOS action sheet: Take Photo or Choose from Photos
+      });
+      if (photo && photo.dataUrl) {
+        setSelectedImage(photo.dataUrl);
+        showToast('📸 تم اختيار الصورة بنجاح! اسألني عنها أو قولي حلها', 'success');
+      }
+    } catch (err) {
+      const errMsg = err?.message?.toLowerCase() || '';
+      if (errMsg.includes('cancelled') || errMsg.includes('canceled') || errMsg.includes('user cancelled')) {
+        return;
+      }
+      // Fallback to file picker
+      if (fileInputRef.current) {
+        fileInputRef.current.click();
+      } else {
+        showToast('تعذر فتح الكاميرا: ' + (err?.message || 'حاول ثانية'), 'error');
+      }
+    }
   };
 
   const handleImagePick = (e) => {
@@ -592,7 +691,7 @@ export default function ChatTab({ showToast }) {
           {/* Camera / Image Pick Button */}
           <button
             type="button"
-            onClick={() => fileInputRef.current?.click()}
+            onClick={handleCameraClick}
             title="صور مسألة أو صفحة بالكاميرا"
             style={{
               background: selectedImage ? 'rgba(56, 189, 248, 0.2)' : 'transparent',
@@ -607,7 +706,7 @@ export default function ChatTab({ showToast }) {
               color: selectedImage ? '#38bdf8' : '#94a3b8'
             }}
           >
-            <Camera size={18} />
+            <CameraIcon size={18} />
           </button>
 
           {/* Voice Mic Button */}
