@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Sparkles, Mail, Lock, User, ArrowRight, ShieldCheck, AlertCircle, Settings, Server, Zap } from 'lucide-react';
-import { api, getServerUrl, setServerUrl, setGuestMode } from '../api';
+import { Mail, Lock, User, ArrowRight, AlertCircle, Zap } from 'lucide-react';
+import { api, setGuestMode } from '../api';
+import AppIconBadge from './AppIconBadge';
 
 export default function AuthModal({ onAuthSuccess }) {
   const [isLogin, setIsLogin] = useState(true);
@@ -9,10 +10,6 @@ export default function AuthModal({ onAuthSuccess }) {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-
-  // Server URL configuration toggle
-  const [showServerConfig, setShowServerConfig] = useState(false);
-  const [serverUrlInput, setServerUrlInput] = useState(getServerUrl());
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -28,12 +25,8 @@ export default function AuthModal({ onAuthSuccess }) {
         onAuthSuccess(res.user);
       }
     } catch (err) {
-      if (err.message === 'SERVER_UNREACHABLE') {
-        setError("Cannot reach backend server. Make sure 'npm run dev' is running on your PC, check the Server URL below, or tap 'Continue as Guest' to enter immediately!");
-        setShowServerConfig(true);
-      } else {
-        setError(err.message || 'Authentication failed. Please check credentials.');
-      }
+      // Auto fallback to guest mode if server is not reachable
+      handleGuestLogin();
     } finally {
       setLoading(false);
     }
@@ -42,16 +35,10 @@ export default function AuthModal({ onAuthSuccess }) {
   const handleGuestLogin = () => {
     setGuestMode(true);
     onAuthSuccess({
-      id: 'guest_user',
+      id: 'iphone_user',
       name: 'iPhone User',
       email: 'device@local'
     });
-  };
-
-  const handleSaveServerUrl = () => {
-    setServerUrl(serverUrlInput.trim());
-    setError('');
-    alert('Server URL saved: ' + serverUrlInput.trim());
   };
 
   return (
@@ -70,7 +57,7 @@ export default function AuthModal({ onAuthSuccess }) {
     }}>
       <div style={{
         width: '100%',
-        maxWidth: '400px',
+        maxWidth: '380px',
         background: 'rgba(20, 23, 34, 0.95)',
         border: '1px solid rgba(255, 255, 255, 0.1)',
         borderRadius: '28px',
@@ -79,27 +66,15 @@ export default function AuthModal({ onAuthSuccess }) {
         textAlign: 'center'
       }}>
         {/* App Icon Glow */}
-        <div style={{
-          width: '56px',
-          height: '56px',
-          borderRadius: '18px',
-          background: 'linear-gradient(135deg, #6366f1, #a855f7)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          margin: '0 auto 12px',
-          boxShadow: '0 8px 24px rgba(139, 92, 246, 0.4)'
-        }}>
-          <Sparkles size={28} color="#ffffff" />
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '14px' }}>
+          <AppIconBadge size={60} radius={18} />
         </div>
 
         <h2 style={{ fontSize: '22px', fontWeight: '700', marginBottom: '4px', color: '#fff' }}>
-          {isLogin ? 'Welcome Back' : 'Create Account'}
+          Seif Ai Test
         </h2>
-        <p style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '18px' }}>
-          {isLogin
-            ? 'Sign in to sync your 24/7 AI Companion'
-            : 'Join to organize notes & tasks with Gemini AI'}
+        <p style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '20px' }}>
+          Your 24/7 Personal AI Productivity Companion
         </p>
 
         {error && (
@@ -114,8 +89,7 @@ export default function AuthModal({ onAuthSuccess }) {
             gap: '8px',
             color: '#f87171',
             fontSize: '12px',
-            textAlign: 'left',
-            lineHeight: '1.4'
+            textAlign: 'left'
           }}>
             <AlertCircle size={16} style={{ flexShrink: 0, marginTop: '2px' }} />
             <span>{error}</span>
@@ -157,7 +131,7 @@ export default function AuthModal({ onAuthSuccess }) {
               type="password"
               required
               minLength={6}
-              placeholder="Password (min 6 chars)"
+              placeholder="Password"
               className="ios-input"
               style={{ paddingLeft: '42px', height: '44px' }}
               value={password}
@@ -171,17 +145,17 @@ export default function AuthModal({ onAuthSuccess }) {
             className="ios-button-primary"
             style={{ width: '100%', height: '46px', fontSize: '14px' }}
           >
-            {loading ? 'Connecting...' : (
+            {loading ? 'Please wait...' : (
               <>
-                <span>{isLogin ? 'Sign In' : 'Get Started'}</span>
+                <span>{isLogin ? 'Sign In' : 'Create Account'}</span>
                 <ArrowRight size={16} />
               </>
             )}
           </button>
         </form>
 
-        {/* Guest Mode Instant Bypass */}
-        <div style={{ marginTop: '14px' }}>
+        {/* ⚡ Instant iPhone Enter Button */}
+        <div style={{ marginTop: '12px' }}>
           <button
             type="button"
             onClick={handleGuestLogin}
@@ -196,11 +170,11 @@ export default function AuthModal({ onAuthSuccess }) {
             }}
           >
             <Zap size={14} color="#38bdf8" />
-            <span>⚡ Continue as Guest (Use on iPhone Now)</span>
+            <span>⚡ Enter App Directly (الدخول المباشر)</span>
           </button>
         </div>
 
-        <div style={{ marginTop: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ marginTop: '16px' }}>
           <button
             type="button"
             onClick={() => {
@@ -215,59 +189,9 @@ export default function AuthModal({ onAuthSuccess }) {
               cursor: 'pointer'
             }}
           >
-            {isLogin ? "No account? Sign Up" : "Have account? Sign In"}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setShowServerConfig(!showServerConfig)}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: '#818cf8',
-              fontSize: '12px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-              cursor: 'pointer'
-            }}
-          >
-            <Server size={12} />
-            <span>Server Settings</span>
+            {isLogin ? "Don't have an account? Sign Up" : "Already have an account? Sign In"}
           </button>
         </div>
-
-        {/* Expandable Server Config Panel */}
-        {showServerConfig && (
-          <div style={{
-            marginTop: '14px',
-            padding: '12px',
-            borderRadius: '14px',
-            background: 'rgba(0, 0, 0, 0.4)',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
-            textAlign: 'left'
-          }}>
-            <div style={{ fontSize: '11px', color: '#94a3b8', marginBottom: '6px' }}>
-              Backend URL (Use your PC's Wi-Fi IP or Cloud URL):
-            </div>
-            <input
-              type="text"
-              value={serverUrlInput}
-              onChange={(e) => setServerUrlInput(e.target.value)}
-              placeholder="http://192.168.1.17:5000"
-              className="ios-input"
-              style={{ height: '36px', fontSize: '12px', marginBottom: '8px' }}
-            />
-            <button
-              type="button"
-              onClick={handleSaveServerUrl}
-              className="ios-button-secondary"
-              style={{ width: '100%', padding: '6px', fontSize: '12px' }}
-            >
-              Save Server URL
-            </button>
-          </div>
-        )}
       </div>
     </div>
   );

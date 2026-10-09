@@ -1,100 +1,61 @@
-import React, { useState, useEffect } from 'react';
-import { Key, Server, Smartphone, LogOut, CheckCircle, AlertCircle, Eye, EyeOff, Bell, Palette, Sparkles, Check, ShieldCheck, RefreshCw, Trash2, Lock } from 'lucide-react';
-import { api, getCustomApiKey, setCustomApiKey, getServerUrl, setServerUrl, isGuestMode, setGuestMode } from '../api';
-import { ICON_THEMES, getActiveTheme, setActiveTheme } from '../themeIcons';
+import React, { useState, useEffect, useRef } from 'react';
+import { Palette, Sparkles, Check, Bell, Upload, RotateCcw, Image, LogOut, CheckCircle2 } from 'lucide-react';
+import { ICON_THEMES, getActiveTheme, setActiveTheme, getCustomIconImage, setCustomIconImage } from '../themeIcons';
 import { notifications } from '../notifications';
-
-// Default system key
-const DEFAULT_SYSTEM_KEY = ['AQ.Ab8RN6', 'LQitT1j-0rKP', '79np_d0UonH', 'JLgK8EFkVH8', 'ReotDLIPrw'].join('');
+import AppIconBadge from './AppIconBadge';
 
 export default function SettingsTab({ user, onLogout, showToast }) {
-  const [apiKeyInput, setApiKeyInput] = useState('');
-  const [showKey, setShowKey] = useState(false);
-  const [serverUrlInput, setServerUrlInput] = useState('');
-  const [testingKey, setTestingKey] = useState(false);
-  const [keyStatus, setKeyStatus] = useState(null);
-  const [serverStatus, setServerStatus] = useState('checking');
   const [activeThemeId, setActiveThemeId] = useState(getActiveTheme().id);
-  const [guestModeActive, setGuestModeActive] = useState(isGuestMode());
+  const [customImg, setCustomImg] = useState(getCustomIconImage());
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
-    setApiKeyInput(getCustomApiKey() || '');
-    setServerUrlInput(getServerUrl());
-    checkServerHealth();
+    const handleTheme = (e) => setActiveThemeId(e.detail?.id || getActiveTheme().id);
+    const handleImg = (e) => setCustomImg(e.detail);
+
+    window.addEventListener('seif-theme-changed', handleTheme);
+    window.addEventListener('seif-icon-image-changed', handleImg);
+    return () => {
+      window.removeEventListener('seif-theme-changed', handleTheme);
+      window.removeEventListener('seif-icon-image-changed', handleImg);
+    };
   }, []);
 
-  const checkServerHealth = async () => {
-    try {
-      setServerStatus('checking');
-      await api.checkHealth();
-      setServerStatus('online');
-    } catch (err) {
-      setServerStatus('offline');
-    }
-  };
-
-  const handleSaveApiKey = async () => {
-    const trimmed = apiKeyInput.trim();
-    setCustomApiKey(trimmed);
-    try {
-      await api.updateSettings({ geminiApiKey: trimmed });
-      showToast('Gemini API key saved privately!', 'success');
-      testApiKey(trimmed);
-    } catch (err) {
-      showToast('Key saved privately on your device!', 'success');
-    }
-  };
-
-  const handleResetDefaultKey = () => {
-    setApiKeyInput(DEFAULT_SYSTEM_KEY);
-    setCustomApiKey(DEFAULT_SYSTEM_KEY);
-    showToast('Reset to default Gemini key', 'info');
-    testApiKey(DEFAULT_SYSTEM_KEY);
-  };
-
-  const handleClearKey = () => {
-    if (confirm('Clear your API key from this device?')) {
-      setApiKeyInput('');
-      setCustomApiKey('');
-      setKeyStatus(null);
-      showToast('API key cleared', 'info');
-    }
-  };
-
-  const testApiKey = async (keyToTest) => {
-    setTestingKey(true);
-    setKeyStatus(null);
-    try {
-      const res = await api.chat('Hello Gemini, reply OK in 2 words', [], 'gemini-flash-lite-latest');
-      if (res.reply) {
-        setKeyStatus('valid');
-        showToast('Gemini API verified & working! ⚡', 'success');
-      }
-    } catch (err) {
-      setKeyStatus('invalid');
-      showToast(err.message || 'Key validation failed', 'error');
-    } finally {
-      setTestingKey(false);
-    }
-  };
-
-  const handleSaveServerUrl = () => {
-    setServerUrl(serverUrlInput.trim());
-    showToast('Server URL updated privately', 'success');
-    checkServerHealth();
-  };
-
-  const handleToggleGuestMode = () => {
-    const next = !guestModeActive;
-    setGuestMode(next);
-    setGuestModeActive(next);
-    showToast(next ? 'Direct Device Mode activated (100% Private)' : 'Standard Server Sync Mode enabled', 'info');
-  };
-
   const handleSelectTheme = (themeId) => {
+    setCustomIconImage(null); // Clear custom image when selecting a preset theme
+    setCustomImg(null);
     setActiveTheme(themeId);
     setActiveThemeId(themeId);
-    showToast('App icon theme updated! 🎨', 'success');
+    showToast('App icon updated! 🎨', 'success');
+  };
+
+  const handleFileUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      showToast('Please select a valid image file', 'error');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64 = event.target?.result;
+      if (base64) {
+        setCustomIconImage(base64);
+        setCustomImg(base64);
+        showToast('Custom App Icon uploaded & applied! 🖼️', 'success');
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleResetDefaultIcon = () => {
+    setCustomIconImage(null);
+    setCustomImg(null);
+    setActiveTheme('cosmic');
+    setActiveThemeId('cosmic');
+    showToast('Reset to default App Icon! 🔄', 'info');
   };
 
   const handleTestNotification = async () => {
@@ -109,8 +70,8 @@ export default function SettingsTab({ user, onLogout, showToast }) {
       <header className="glass-header" style={{
         padding: 'calc(var(--safe-top) + 12px) 16px 12px'
       }}>
-        <h1 style={{ fontSize: '20px', fontWeight: '700' }}>Privacy & Settings</h1>
-        <p style={{ fontSize: '12px', color: '#94a3b8' }}>100% User-Controlled API Key & Private Server</p>
+        <h1 style={{ fontSize: '20px', fontWeight: '700' }}>App Settings</h1>
+        <p style={{ fontSize: '12px', color: '#94a3b8' }}>Customize App Icon, Notifications & Profile</p>
       </header>
 
       {/* Content Area */}
@@ -125,10 +86,11 @@ export default function SettingsTab({ user, onLogout, showToast }) {
         {/* User Card */}
         <div className="glass-panel" style={{ padding: '16px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <div style={{ fontSize: '16px', fontWeight: '700', color: '#fff' }}>{user?.name || 'iPhone User'}</div>
-              <div style={{ fontSize: '13px', color: '#94a3b8' }}>
-                {guestModeActive ? '🔒 Direct Device Mode (Zero Server Logging)' : user?.email || 'device@local'}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <AppIconBadge size={44} radius={14} />
+              <div>
+                <div style={{ fontSize: '16px', fontWeight: '700', color: '#fff' }}>{user?.name || 'iPhone User'}</div>
+                <div style={{ fontSize: '12px', color: '#94a3b8' }}>Seif Ai Test • 24/7 Active</div>
               </div>
             </div>
             <button
@@ -142,177 +104,84 @@ export default function SettingsTab({ user, onLogout, showToast }) {
           </div>
         </div>
 
-        {/* Gemini API Key Privacy Card */}
-        <div className="glass-panel" style={{ padding: '16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Key size={18} color="#818cf8" />
-              <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#fff' }}>Gemini API Key Control</h3>
-            </div>
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-              background: 'rgba(16, 185, 129, 0.15)',
-              padding: '3px 8px',
-              borderRadius: '8px',
-              fontSize: '11px',
-              color: '#34d399',
-              fontWeight: '600'
-            }}>
-              <Lock size={11} />
-              <span>User Controlled</span>
-            </div>
+        {/* 🎨 APP ICON CUSTOMIZER (Centerpiece) */}
+        <div className="glass-panel" style={{ padding: '18px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+            <Palette size={18} color="#c084fc" />
+            <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#fff' }}>App Icon (تغيير صورة وأيقونة التطبيق)</h3>
           </div>
-
-          <p style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '12px', lineHeight: '1.4' }}>
-            Your key is pre-configured with your private token. <strong>Only you can change or replace it</strong>. It is stored securely in your private device storage and never shared with anyone.
+          <p style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '16px', lineHeight: '1.4' }}>
+            Choose from custom designer icons below or upload your own personal photo/logo:
           </p>
 
-          <div style={{ position: 'relative', marginBottom: '10px' }}>
-            <input
-              type={showKey ? 'text' : 'password'}
-              placeholder="Paste custom Gemini API Key"
-              value={apiKeyInput}
-              onChange={(e) => setApiKeyInput(e.target.value)}
-              className="ios-input"
-              style={{ paddingRight: '40px', fontSize: '13px', fontFamily: 'monospace' }}
-            />
-            <button
-              type="button"
-              onClick={() => setShowKey(!showKey)}
-              style={{
-                position: 'absolute',
-                right: '12px',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                background: 'transparent',
-                border: 'none',
-                color: '#64748b',
-                cursor: 'pointer'
-              }}
-            >
-              {showKey ? <EyeOff size={16} /> : <Eye size={16} />}
-            </button>
+          {/* Current Icon Preview Showcase */}
+          <div style={{
+            background: 'rgba(255, 255, 255, 0.03)',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            borderRadius: '20px',
+            padding: '16px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: '16px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+              <AppIconBadge size={64} radius={20} showBorder={true} />
+              <div>
+                <div style={{ fontSize: '14px', fontWeight: '700', color: '#fff', marginBottom: '2px' }}>
+                  {customImg ? 'Custom User Photo' : (ICON_THEMES.find(t => t.id === activeThemeId)?.name || 'Default Icon')}
+                </div>
+                <div style={{ fontSize: '11px', color: '#34d399', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <CheckCircle2 size={12} /> Active on your iPhone
+                </div>
+              </div>
+            </div>
+
+            {customImg && (
+              <button
+                onClick={handleResetDefaultIcon}
+                className="ios-button-secondary"
+                style={{ padding: '6px 10px', fontSize: '11px', gap: '4px' }}
+                title="Reset to default icon"
+              >
+                <RotateCcw size={12} />
+                <span>Reset</span>
+              </button>
+            )}
           </div>
 
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
-            <button
-              onClick={handleSaveApiKey}
-              className="ios-button-primary"
-              style={{ flex: 1, padding: '10px', fontSize: '13px' }}
-            >
-              Save Key
-            </button>
-            <button
-              disabled={testingKey}
-              onClick={() => testApiKey()}
-              className="ios-button-secondary"
-              style={{ padding: '10px 14px', fontSize: '13px' }}
-            >
-              {testingKey ? 'Testing...' : 'Test Connection'}
-            </button>
-          </div>
-
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <button
-              onClick={handleResetDefaultKey}
-              className="ios-button-secondary"
-              style={{ flex: 1, padding: '7px', fontSize: '11px', color: '#94a3b8' }}
-            >
-              <RefreshCw size={12} />
-              <span>Reset to Default Key</span>
-            </button>
-            <button
-              onClick={handleClearKey}
-              className="ios-button-secondary"
-              style={{ padding: '7px 12px', fontSize: '11px', color: '#f87171', borderColor: 'rgba(239, 68, 68, 0.2)' }}
-            >
-              <Trash2 size={12} />
-              <span>Clear</span>
-            </button>
-          </div>
-
-          {keyStatus === 'valid' && (
-            <div style={{ marginTop: '10px', color: '#34d399', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <CheckCircle size={14} /> Gemini API is connected & responding in &lt;1.5s! ⚡
-            </div>
-          )}
-          {keyStatus === 'invalid' && (
-            <div style={{ marginTop: '10px', color: '#f87171', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <AlertCircle size={14} /> Connection check failed. Please verify your key.
-            </div>
-          )}
-        </div>
-
-        {/* 24/7 Private Server Control Card */}
-        <div className="glass-panel" style={{ padding: '16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Server size={18} color="#38bdf8" />
-              <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#fff' }}>Server & Privacy Mode</h3>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <span style={{
-                width: '8px',
-                height: '8px',
-                borderRadius: '50%',
-                background: serverStatus === 'online' ? '#10b981' : serverStatus === 'checking' ? '#fbbf24' : '#ef4444'
-              }} />
-              <span style={{ fontSize: '11px', color: '#94a3b8', textTransform: 'capitalize' }}>{serverStatus}</span>
-            </div>
-          </div>
-
-          <p style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '10px', lineHeight: '1.4' }}>
-            You have 100% control over where your requests go. You can set your own private server URL, or enable <strong>Direct Device Mode</strong> to bypass any server entirely for maximum privacy.
-          </p>
-
+          {/* Upload Custom Photo Button */}
           <input
-            type="text"
-            placeholder="http://192.168.1.17:5000 or https://your-server.onrender.com"
-            value={serverUrlInput}
-            onChange={(e) => setServerUrlInput(e.target.value)}
-            className="ios-input"
-            style={{ fontSize: '13px', marginBottom: '8px' }}
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileUpload}
+            accept="image/*"
+            style={{ display: 'none' }}
           />
 
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <button
-              onClick={handleSaveServerUrl}
-              className="ios-button-primary"
-              style={{ flex: 1, fontSize: '12px', padding: '9px' }}
-            >
-              Update Server URL
-            </button>
-            <button
-              onClick={handleToggleGuestMode}
-              className="ios-button-secondary"
-              style={{
-                fontSize: '12px',
-                padding: '9px 12px',
-                color: guestModeActive ? '#10b981' : '#38bdf8',
-                borderColor: guestModeActive ? 'rgba(16, 185, 129, 0.4)' : 'rgba(56, 189, 248, 0.3)'
-              }}
-            >
-              <ShieldCheck size={14} />
-              <span>{guestModeActive ? 'Direct Mode: ON' : 'Direct Mode: OFF'}</span>
-            </button>
-          </div>
-        </div>
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="ios-button-primary"
+            style={{
+              width: '100%',
+              marginBottom: '16px',
+              padding: '12px',
+              fontSize: '13px',
+              gap: '8px'
+            }}
+          >
+            <Upload size={16} />
+            <span>Upload Your Own Photo as App Icon (رفع صورتك للأيقونة)</span>
+          </button>
 
-        {/* App Icon & Themes Selector */}
-        <div className="glass-panel" style={{ padding: '16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-            <Palette size={18} color="#c084fc" />
-            <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#fff' }}>App Icon & Aesthetic Theme</h3>
+          {/* Designer Icons Grid */}
+          <div style={{ fontSize: '12px', fontWeight: '600', color: '#94a3b8', marginBottom: '8px' }}>
+            Or choose a designer icon theme:
           </div>
-          <p style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '12px' }}>
-            Pick your personal favorite icon color and UI accent:
-          </p>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '8px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
             {ICON_THEMES.map((theme) => {
-              const isSelected = activeThemeId === theme.id;
+              const isSelected = !customImg && activeThemeId === theme.id;
               return (
                 <div
                   key={theme.id}
@@ -320,24 +189,24 @@ export default function SettingsTab({ user, onLogout, showToast }) {
                   style={{
                     background: isSelected ? 'rgba(255, 255, 255, 0.12)' : 'rgba(255, 255, 255, 0.04)',
                     border: isSelected ? `2px solid ${theme.primary}` : '1px solid rgba(255, 255, 255, 0.08)',
-                    borderRadius: '14px',
-                    padding: '10px 12px',
+                    borderRadius: '16px',
+                    padding: '12px',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '8px',
+                    gap: '10px',
                     transition: 'all 0.2s ease'
                   }}
                 >
                   <div style={{
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '10px',
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '12px',
                     background: theme.gradient,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    boxShadow: `0 2px 8px ${theme.glow}`,
+                    boxShadow: `0 2px 10px ${theme.glow}`,
                     flexShrink: 0
                   }}>
                     <Sparkles size={16} color="#fff" />
@@ -346,6 +215,7 @@ export default function SettingsTab({ user, onLogout, showToast }) {
                     <div style={{ fontSize: '12px', fontWeight: '600', color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {theme.name}
                     </div>
+                    <div style={{ fontSize: '10px', color: '#64748b' }}>{theme.badge} Preset</div>
                   </div>
                   {isSelected && <Check size={14} color={theme.primary} />}
                 </div>
@@ -354,23 +224,23 @@ export default function SettingsTab({ user, onLogout, showToast }) {
           </div>
         </div>
 
-        {/* Notifications & AI Reminders */}
+        {/* Notifications & Reminders Alert Card */}
         <div className="glass-panel" style={{ padding: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
             <Bell size={18} color="#38bdf8" />
-            <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#fff' }}>Notifications & Background Reminders</h3>
+            <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#fff' }}>iPhone Notifications</h3>
           </div>
           <p style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '12px', lineHeight: '1.4' }}>
-            Test push alerts and verify sound notifications on your iPhone:
+            Get sound alerts when Seif Ai Test responds in the background, or when you set a reminder (e.g. <em>"Remind me in 5 minutes to..."</em>).
           </p>
 
           <button
             onClick={handleTestNotification}
-            className="ios-button-primary"
+            className="ios-button-secondary"
             style={{ width: '100%', fontSize: '13px', padding: '10px' }}
           >
-            <Bell size={16} />
-            <span>Enable & Test Notification Alert</span>
+            <Bell size={15} />
+            <span>Test Notification Alert on iPhone</span>
           </button>
         </div>
       </div>

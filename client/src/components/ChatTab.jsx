@@ -3,6 +3,7 @@ import { Send, Sparkles, Trash2, Copy, Check, Bot, Bell, Clock, Cpu } from 'luci
 import { api } from '../api';
 import { notifications } from '../notifications';
 import { getActiveTheme } from '../themeIcons';
+import AppIconBadge from './AppIconBadge';
 
 const QUICK_PROMPTS = [
   '⏰ Remind me in 10 minutes to take a break',
@@ -164,19 +165,7 @@ export default function ChatTab({ showToast }) {
         justifyContent: 'space-between'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <div style={{
-            width: '38px',
-            height: '38px',
-            borderRadius: '13px',
-            background: theme.gradient,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: `0 4px 15px ${theme.glow}`,
-            transition: 'all 0.3s ease'
-          }}>
-            <Sparkles size={20} color="#ffffff" />
-          </div>
+          <AppIconBadge size={38} radius={12} />
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <h1 style={{ fontSize: '17px', fontWeight: '700', lineHeight: '1.2' }}>Seif Ai Test</h1>
