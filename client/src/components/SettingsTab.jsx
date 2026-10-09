@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, LogOut, CheckCircle2, Hourglass, Clock, ShieldAlert } from 'lucide-react';
+import { Bell, LogOut, CheckCircle2, Hourglass, Clock, ShieldAlert, Volume2 } from 'lucide-react';
 import { getActiveTheme } from '../themeIcons';
 import { getScreenTimeData, saveScreenTimeData, formatMinutes, formatSeconds } from '../screenTime';
 import { notifications } from '../notifications';
+import { logoSound } from '../logoAudio';
 import AppIconBadge from './AppIconBadge';
 
 export default function SettingsTab({ user, onLogout, showToast }) {
@@ -76,19 +77,32 @@ export default function SettingsTab({ user, onLogout, showToast }) {
           </div>
         </div>
 
-        {/* 🎨 APP ICON CUSTOMIZER (Centerpiece) */}
         {/* 🎨 Official App Icon Display */}
         <div className="glass-panel" style={{ padding: '16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-            <AppIconBadge size={56} radius={18} showBorder={true} />
-            <div>
-              <div style={{ fontSize: '15px', fontWeight: '700', color: '#fff', marginBottom: '2px' }}>
-                Seif Ai Test
-              </div>
-              <div style={{ fontSize: '12px', color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <CheckCircle2 size={13} /> الأيقونة الرسمية للتطبيق
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+              <AppIconBadge size={56} radius={18} showBorder={true} />
+              <div>
+                <div style={{ fontSize: '15px', fontWeight: '700', color: '#fff', marginBottom: '2px' }}>
+                  Seif Ai Test
+                </div>
+                <div style={{ fontSize: '12px', color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <CheckCircle2 size={13} /> اضغط الشعار لسماع الصوت
+                </div>
               </div>
             </div>
+            <button
+              onClick={() => {
+                logoSound.playLogoSound();
+                showToast('✨ تم تشغيل نغمة الشعار!', 'success');
+              }}
+              className="ios-button-secondary"
+              style={{ padding: '8px 12px', fontSize: '12px', gap: '6px' }}
+              title="تشغيل نغمة الشعار"
+            >
+              <Volume2 size={15} color="#38bdf8" />
+              <span>صوت الشعار 🎵</span>
+            </button>
           </div>
         </div>
 
