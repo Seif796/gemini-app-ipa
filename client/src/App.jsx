@@ -3,7 +3,8 @@ import { api, getToken, setToken, isGuestMode, setGuestMode } from './api';
 import { getActiveTheme, setActiveTheme } from './themeIcons';
 import { getScreenTimeData, saveScreenTimeData, formatSeconds } from './screenTime';
 import { notifications } from './notifications';
-import { getCurrentUsername, getFriendsData, checkNewIncomingDmMessages } from './friendsApi';
+import { getCurrentUsername, getFriendsData, checkNewIncomingDmMessages, updateUserLocation, checkAcceptedFriendships, checkNearbyFriendsAlerts } from './friendsApi';
+import { initLocationTracking } from './locationService';
 import { getAppLanguage } from './i18n';
 import TabBar from './components/TabBar';
 import ChatTab from './components/ChatTab';
@@ -51,13 +52,22 @@ export default function App() {
     };
   }, []);
 
-  // Global background listener for DM messages and friend requests
+  // Initialize real-time location tracking for user & friend proximity
+  useEffect(() => {
+    if (myUsername) {
+      initLocationTracking((coords) => {
+        updateUserLocation(coords.lat, coords.lng);
+      });
+    }
+  }, [myUsername]);
+
+  // Global background listener for DM messages, friend requests, proximity & acceptances
   useEffect(() => {
     if (!myUsername) return;
 
     const pollDmAndRequests = async () => {
       try {
-        // 1. Check for incoming DM messages
+        // 1. Check for incoming DM messages (Title: sender name, Body: message text)
         const newDmMessages = await checkNewIncomingDmMessages();
         if (Array.isArray(newDmMessages) && newDmMessages.length > 0) {
           for (const msg of newDmMessages) {
@@ -75,7 +85,28 @@ export default function App() {
           }
         }
 
-        // 2. Check pending friend requests for badge
+        // 2. Check for newly accepted friend requests (Notify the sender: "مبروك قبلت صديقك")
+        const newlyAccepted = await checkAcceptedFriendships();
+        if (Array.isArray(newlyAccepted) && newlyAccepted.length > 0) {
+          for (const friend of newlyAccepted) {
+            await notifications.sendNow('🎉 مبروك!', `@${friend} قبل طلب صداقتك وأصبحتم أصدقاء الآن! ابدأ الدردشة معه 🤝`);
+            showToast(`🎉 مبروك! قبلت صديقك @${friend}`, 'success');
+          }
+        }
+
+        // 3. Check for nearby friends in close proximity (< 500m)
+        const nearbyFriends = await checkNearbyFriendsAlerts();
+        if (Array.isArray(nearbyFriends) && nearbyFriends.length > 0) {
+          for (const item of nearbyFriends) {
+            const distText = item.distance < 100 ? 'أقل من 100 متر' : `${item.distance} متر`;
+            const title = `📍 @${item.friend} قريب منك!`;
+            const body = `أنت وصديقك @${item.friend} قريبين من بعض (${distText})! كلمه وشوفه دلوقتي 🤝`;
+            await notifications.sendNow(title, body);
+            showToast(body, 'info');
+          }
+        }
+
+        // 4. Check pending friend requests for badge
         const data = await getFriendsData();
         const count = (data && Array.isArray(data.incomingRequests)) ? data.incomingRequests.length : 0;
         setPendingFriendsCount(count);

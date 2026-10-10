@@ -99,5 +99,9 @@
 	<string>التطبيق يحتاج إذن الميكروفون للتحدث الصوتي مع المساعد الذكي.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>التطبيق يحتاج إذن التعرف على الصوت لتحويل كلامك إلى نصوص فورية.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>التطبيق يحتاج إلى موقعك الجغرافي لتنبيهك عند اقتراب أصدقائك منك لرؤيتهم والتحدث معهم.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>التطبيق يحتاج إلى موقعك الجغرافي لتنبيهك عند تواجد أحد أصدقائك في نفس المكان بالقرب منك.</string>
 </dict>
 </plist>

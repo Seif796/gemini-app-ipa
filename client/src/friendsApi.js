@@ -1,6 +1,7 @@
 import { directGeminiCall } from './api';
-import { playNotificationSound } from './notifications';
+import { notifications, playNotificationSound } from './notifications';
 import { getTranslation } from './i18n';
+import { findNearbyFriends, getLastKnownLocation } from './locationService';
 
 const MASTER_REGISTRY_ID = 'ff808181a09d98f701a122e81b8f31c6';
 const CLOUD_URL = `https://api.restful-api.dev/objects/${MASTER_REGISTRY_ID}`;
@@ -230,6 +231,8 @@ export async function acceptFriendRequest(requestId) {
   if (!req) throw new Error('طلب الصداقة غير موجود');
 
   req.status = 'accepted';
+  req.acceptedAt = Date.now();
+  req.notifiedToSender = false; // Sender will be notified when they open app / poll
 
   // Add friendship both ways
   registry.friendships = registry.friendships || {};
@@ -244,7 +247,12 @@ export async function acceptFriendRequest(requestId) {
   }
 
   await saveMasterRegistry(registry);
-  playNotificationSound();
+
+  // Send celebratory notification to the person accepting
+  try {
+    notifications.sendNow('🎉 مبروك!', `قبلت صديقك @${req.from} وأصبحتم أصدقاء الآن! ابدأ الدردشة معه 🤝`);
+  } catch (_) {}
+
   return req;
 }
 
@@ -454,8 +462,64 @@ export async function checkNewIncomingDmMessages() {
       }
     }
   }
-
   return incoming;
 }
 
+// 10. Update User Real-Time Geolocation Coordinates
+export async function updateUserLocation(lat, lng) {
+  const myUsername = getCurrentUsername();
+  if (!myUsername || lat == null || lng == null) return;
 
+  const registry = await getMasterRegistry();
+  if (!registry) return;
+
+  registry.users = registry.users || {};
+  if (!registry.users[myUsername]) {
+    registry.users[myUsername] = { username: myUsername, createdAt: new Date().toISOString() };
+  }
+
+  registry.users[myUsername].location = {
+    lat,
+    lng,
+    updatedAt: Date.now()
+  };
+
+  await saveMasterRegistry(registry);
+}
+
+// 11. Check Outgoing Requests That Were Accepted (Notify Sender)
+export async function checkAcceptedFriendships() {
+  const myUsername = getCurrentUsername();
+  if (!myUsername) return [];
+
+  const registry = await getMasterRegistry(true);
+  if (!registry || !Array.isArray(registry.friendRequests)) return [];
+
+  const newlyAccepted = [];
+  let modified = false;
+
+  for (const req of registry.friendRequests) {
+    if (req && req.from === myUsername && req.status === 'accepted' && !req.notifiedToSender) {
+      req.notifiedToSender = true;
+      modified = true;
+      newlyAccepted.push(req.to);
+    }
+  }
+
+  if (modified) {
+    await saveMasterRegistry(registry);
+  }
+
+  return newlyAccepted;
+}
+
+// 12. Check Real-Time Proximity to Nearby Friends (< 500m)
+export async function checkNearbyFriendsAlerts() {
+  const myUsername = getCurrentUsername();
+  if (!myUsername) return [];
+
+  const registry = await getMasterRegistry();
+  if (!registry) return [];
+
+  return findNearbyFriends(myUsername, registry);
+}
