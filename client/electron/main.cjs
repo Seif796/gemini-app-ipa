@@ -1,7 +1,10 @@
-const { app, BrowserWindow, shell, session } = require('electron');
+const { app, BrowserWindow, shell, session, Menu } = require('electron');
 const path = require('path');
 
 let mainWindow = null;
+
+// Remove default File, Edit, View, Window menu bar completely
+Menu.setApplicationMenu(null);
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -18,9 +21,11 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.cjs'),
       webSecurity: true
     },
-    autoHideMenuBar: false,
+    autoHideMenuBar: true,
     show: false
   });
+
+  mainWindow.setMenuBarVisibility(false);
 
   // Automatically grant camera, microphone, notification and geolocation permissions
   session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {

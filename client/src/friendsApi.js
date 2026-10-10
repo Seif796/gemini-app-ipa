@@ -713,6 +713,11 @@ export async function checkNewIncomingDmMessages() {
       window.dispatchEvent(new CustomEvent('seif-call-response', { detail: ev }));
     }
 
+    // 6.1 WebRTC Call Signaling (SDP Offer/Answer & ICE Candidates)
+    else if (ev.type === 'call_signal' && ev.from && ev.from !== myUsername && ev.signal) {
+      window.dispatchEvent(new CustomEvent('seif-call-signal', { detail: ev }));
+    }
+
     // 7. Call Ended
     else if (ev.type === 'call_end' && ev.from && ev.from !== myUsername) {
       window.dispatchEvent(new CustomEvent('seif-call-end', { detail: ev }));
@@ -790,6 +795,22 @@ export async function sendCallEnd(friendUsername) {
     to: friendUsername,
     time: Date.now()
   });
+}
+
+export async function sendCallSignal(friendUsername, signalData) {
+  const myUsername = getCurrentUsername();
+  if (!myUsername || !friendUsername) return null;
+
+  const data = {
+    type: 'call_signal',
+    signal: signalData,
+    from: myUsername,
+    to: friendUsername,
+    time: Date.now()
+  };
+
+  publishCloudEvent(`inbox_${friendUsername}`, data);
+  return data;
 }
 
 // ---------------- 9. LOCATION & PROXIMITY ----------------

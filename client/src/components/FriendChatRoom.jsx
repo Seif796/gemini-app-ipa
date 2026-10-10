@@ -62,7 +62,7 @@ export default function FriendChatRoom({ friend, onBack, onStartCall, showToast 
     };
 
     fetchMessages();
-    pollTimerRef.current = setInterval(fetchMessages, 1200);
+    pollTimerRef.current = setInterval(fetchMessages, 600);
     return () => clearInterval(pollTimerRef.current);
   }, [friend, myUsername]);
 
@@ -142,23 +142,47 @@ export default function FriendChatRoom({ friend, onBack, onStartCall, showToast 
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', background: '#07090e' }}>
+    <div style={{
+      position: 'fixed',
+      inset: 0,
+      zIndex: 100,
+      display: 'flex',
+      flexDirection: 'column',
+      height: '100dvh',
+      width: '100vw',
+      overflow: 'hidden',
+      background: '#07090e'
+    }}>
       {/* Header */}
       <header className="glass-header" style={{
         padding: 'calc(var(--safe-top) + 8px) 14px 10px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        gap: '8px'
+        gap: '8px',
+        zIndex: 10
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <button
             onClick={onBack}
             className="ios-button-secondary"
-            style={{ width: '36px', height: '36px', borderRadius: '50%', padding: 0 }}
-            title="رجوع"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 14px',
+              borderRadius: '20px',
+              background: 'rgba(255, 255, 255, 0.12)',
+              border: '1px solid rgba(255, 255, 255, 0.2)',
+              color: '#fff',
+              fontSize: '13px',
+              fontWeight: '800',
+              cursor: 'pointer'
+            }}
+            title="خروج من المحادثة"
           >
-            <ArrowLeft size={18} />
+            <ArrowLeft size={16} />
+            <span>خروج</span>
           </button>
 
           <div style={{
@@ -347,13 +371,21 @@ export default function FriendChatRoom({ friend, onBack, onStartCall, showToast 
       <div style={{
         flex: 1,
         overflowY: 'auto',
-        padding: '16px 14px calc(var(--safe-bottom) + 110px) 14px',
+        padding: '16px 14px',
         display: 'flex',
         flexDirection: 'column',
-        gap: '10px'
+        width: '100%'
       }}>
-        {chatMessages.length === 0 ? (
-          <div style={{ textAlign: 'center', color: '#94a3b8', marginTop: '40px', fontSize: '13px' }}>
+        <div style={{
+          maxWidth: '900px',
+          width: '100%',
+          margin: '0 auto',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '10px'
+        }}>
+          {chatMessages.length === 0 ? (
+            <div style={{ textAlign: 'center', color: '#94a3b8', marginTop: '40px', fontSize: '13px' }}>
             👋 ابدأ المحادثة الآن مع @{friend}!
           </div>
         ) : (
@@ -463,105 +495,105 @@ export default function FriendChatRoom({ friend, onBack, onStartCall, showToast 
           </div>
         )}
 
-        <div ref={chatEndRef} />
+          <div ref={chatEndRef} />
+        </div>
       </div>
 
-      {/* Input Dock */}
+      {/* Input Dock (Flush at bottom, taking full width with responsive centering) */}
       <div style={{
-        position: 'fixed',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        padding: '8px 12px calc(var(--safe-bottom) + 64px) 12px',
+        width: '100%',
+        padding: '8px 12px calc(var(--safe-bottom) + 8px) 12px',
         background: 'rgba(9, 10, 15, 0.96)',
         backdropFilter: 'blur(16px)',
         borderTop: '1px solid rgba(255, 255, 255, 0.08)',
         zIndex: 40
       }}>
-        {/* Quick @gemini Tag Shortcut */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginBottom: '6px',
-          padding: '0 4px'
-        }}>
-          <button
-            type="button"
-            onClick={() => {
-              setMsgInput((prev) => {
-                if (prev.includes('@gemini')) return prev;
-                return prev.trim() ? `@gemini ${prev}` : '@gemini ';
-              });
-            }}
-            style={{
-              padding: '4px 10px',
-              borderRadius: '12px',
-              background: 'rgba(56, 189, 248, 0.18)',
-              border: '1px solid rgba(56, 189, 248, 0.35)',
-              color: '#38bdf8',
-              fontSize: '11px',
-              fontWeight: '700',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '5px',
-              cursor: 'pointer'
-            }}
-          >
-            <Sparkles size={12} />
-            <span>اسأل @gemini ✨</span>
-          </button>
-          <span style={{ fontSize: '10px', color: '#64748b' }}>
-            سيرد عليكم أنتم الاثنين معاً
-          </span>
-        </div>
-
-        <form
-          onSubmit={handleSendMessage}
-          style={{
+        <div style={{ maxWidth: '900px', margin: '0 auto', width: '100%' }}>
+          {/* Quick @gemini Tag Shortcut */}
+          <div style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '6px',
-            background: 'rgba(255, 255, 255, 0.06)',
-            borderRadius: '24px',
-            padding: '4px 6px 4px 12px',
-            border: '1px solid rgba(255, 255, 255, 0.12)'
-          }}
-        >
-          <input
-            type="text"
-            placeholder="اكتب رسالة أو اسأل @gemini..."
-            value={msgInput}
-            onChange={(e) => setMsgInput(e.target.value)}
-            disabled={sendingMsg}
+            justifyContent: 'space-between',
+            marginBottom: '6px',
+            padding: '0 4px'
+          }}>
+            <button
+              type="button"
+              onClick={() => {
+                setMsgInput((prev) => {
+                  if (prev.includes('@gemini')) return prev;
+                  return prev.trim() ? `@gemini ${prev}` : '@gemini ';
+                });
+              }}
+              style={{
+                padding: '4px 10px',
+                borderRadius: '12px',
+                background: 'rgba(56, 189, 248, 0.18)',
+                border: '1px solid rgba(56, 189, 248, 0.35)',
+                color: '#38bdf8',
+                fontSize: '11px',
+                fontWeight: '700',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+                cursor: 'pointer'
+              }}
+            >
+              <Sparkles size={12} />
+              <span>اسأل @gemini ✨</span>
+            </button>
+            <span style={{ fontSize: '10px', color: '#64748b' }}>
+              سيرد عليكم أنتم الاثنين معاً
+            </span>
+          </div>
+
+          <form
+            onSubmit={handleSendMessage}
             style={{
-              flex: 1,
-              background: 'transparent',
-              border: 'none',
-              color: '#ffffff',
-              fontSize: '13px',
-              outline: 'none',
-              padding: '6px 4px'
-            }}
-          />
-          <button
-            type="submit"
-            disabled={!msgInput.trim() || sendingMsg}
-            style={{
-              width: '36px',
-              height: '36px',
-              borderRadius: '50%',
-              background: msgInput.trim() ? 'linear-gradient(135deg, #0284c7, #38bdf8)' : 'rgba(255, 255, 255, 0.1)',
-              border: 'none',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              cursor: msgInput.trim() ? 'pointer' : 'default'
+              gap: '6px',
+              background: 'rgba(255, 255, 255, 0.06)',
+              borderRadius: '24px',
+              padding: '4px 6px 4px 12px',
+              border: '1px solid rgba(255, 255, 255, 0.12)'
             }}
           >
-            <Send size={15} color={msgInput.trim() ? '#fff' : '#64748b'} />
-          </button>
-        </form>
+            <input
+              type="text"
+              placeholder="اكتب رسالة أو اسأل @gemini..."
+              value={msgInput}
+              onChange={(e) => setMsgInput(e.target.value)}
+              disabled={sendingMsg}
+              style={{
+                flex: 1,
+                background: 'transparent',
+                border: 'none',
+                color: '#ffffff',
+                fontSize: '13px',
+                outline: 'none',
+                padding: '6px 4px'
+              }}
+            />
+            <button
+              type="submit"
+              disabled={!msgInput.trim() || sendingMsg}
+              style={{
+                width: '36px',
+                height: '36px',
+                borderRadius: '50%',
+                background: msgInput.trim() ? 'linear-gradient(135deg, #0284c7, #38bdf8)' : 'rgba(255, 255, 255, 0.1)',
+                border: 'none',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: msgInput.trim() ? 'pointer' : 'default'
+              }}
+            >
+              <Send size={15} color={msgInput.trim() ? '#fff' : '#64748b'} />
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   );

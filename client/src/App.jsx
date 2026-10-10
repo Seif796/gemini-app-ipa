@@ -135,7 +135,7 @@ export default function App() {
     };
 
     pollDmAndRequests();
-    const interval = setInterval(pollDmAndRequests, 2500);
+    const interval = setInterval(pollDmAndRequests, 900);
     return () => clearInterval(interval);
   }, [myUsername]);
 

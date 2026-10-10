@@ -723,7 +723,10 @@ export default function ChatTab({ showToast, onStartCall, onSwitchTab, onOpenAbo
         padding: '16px 16px 10px',
         display: 'flex',
         flexDirection: 'column',
-        gap: '14px'
+        gap: '14px',
+        maxWidth: '900px',
+        width: '100%',
+        margin: '0 auto'
       }}>
         {messages.map((msg) => {
           const isUser = msg.role === 'user';
@@ -938,113 +941,115 @@ export default function ChatTab({ showToast, onStartCall, onSwitchTab, onOpenAbo
 
       {/* Input Dock */}
       <div style={{
-        padding: '8px 12px calc(var(--safe-bottom) + 64px) 12px',
+        padding: '8px 12px calc(var(--safe-bottom) + 48px) 12px',
         background: 'rgba(9, 10, 15, 0.95)',
         borderTop: '1px solid rgba(255, 255, 255, 0.08)'
       }}>
-        {/* Hidden File Input for Camera / Gallery */}
-        <input
-          type="file"
-          ref={fileInputRef}
-          onChange={handleImagePick}
-          accept="image/*"
-          style={{ display: 'none' }}
-        />
-
-        <form
-          onSubmit={(e) => { e.preventDefault(); handleSend(); }}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            background: 'rgba(255, 255, 255, 0.06)',
-            borderRadius: '24px',
-            padding: '4px 6px 4px 10px',
-            border: '1px solid rgba(255, 255, 255, 0.12)'
-          }}
-        >
-          {/* Camera / Image Pick Button */}
-          <button
-            type="button"
-            onClick={handleCameraClick}
-            title="صور مسألة أو صفحة بالكاميرا"
-            style={{
-              background: selectedImage ? 'rgba(56, 189, 248, 0.2)' : 'transparent',
-              border: 'none',
-              borderRadius: '50%',
-              width: '32px',
-              height: '32px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              color: selectedImage ? '#38bdf8' : '#94a3b8'
-            }}
-          >
-            <CameraIcon size={18} />
-          </button>
-
-          {/* Voice Mic Button */}
-          <button
-            type="button"
-            onClick={toggleSpeechRecognition}
-            title="تحدث بالصوت"
-            style={{
-              background: isListening ? 'rgba(239, 68, 68, 0.25)' : 'transparent',
-              border: isListening ? '1px solid #ef4444' : 'none',
-              borderRadius: '50%',
-              width: '32px',
-              height: '32px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              color: isListening ? '#f87171' : '#94a3b8',
-              animation: isListening ? 'pulse 1s infinite alternate' : 'none'
-            }}
-          >
-            <Mic size={18} />
-          </button>
-
-          {/* Text Input */}
+        <div style={{ maxWidth: '900px', margin: '0 auto', width: '100%' }}>
+          {/* Hidden File Input for Camera / Gallery */}
           <input
-            type="text"
-            placeholder={isListening ? t.voiceListeningToast : t.chatInputPlaceholder}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            disabled={loading}
-            style={{
-              flex: 1,
-              background: 'transparent',
-              border: 'none',
-              color: '#ffffff',
-              fontSize: '13px',
-              outline: 'none',
-              padding: '6px 4px'
-            }}
+            type="file"
+            ref={fileInputRef}
+            onChange={handleImagePick}
+            accept="image/*"
+            style={{ display: 'none' }}
           />
 
-          {/* Send Button */}
-          <button
-            type="submit"
-            disabled={(!input.trim() && !selectedImage) || loading}
+          <form
+            onSubmit={(e) => { e.preventDefault(); handleSend(); }}
             style={{
-              width: '36px',
-              height: '36px',
-              borderRadius: '50%',
-              background: (input.trim() || selectedImage) ? theme.gradient : 'rgba(255, 255, 255, 0.1)',
-              border: 'none',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              cursor: (input.trim() || selectedImage) ? 'pointer' : 'default',
-              boxShadow: (input.trim() || selectedImage) ? `0 2px 10px ${theme.glow}` : 'none',
-              transition: 'all 0.2s'
+              gap: '6px',
+              background: 'rgba(255, 255, 255, 0.06)',
+              borderRadius: '24px',
+              padding: '4px 6px 4px 10px',
+              border: '1px solid rgba(255, 255, 255, 0.12)'
             }}
           >
-            <Send size={15} color={(input.trim() || selectedImage) ? '#ffffff' : '#64748b'} />
-          </button>
-        </form>
+            {/* Camera / Image Pick Button */}
+            <button
+              type="button"
+              onClick={handleCameraClick}
+              title="صور مسألة أو صفحة بالكاميرا"
+              style={{
+                background: selectedImage ? 'rgba(56, 189, 248, 0.2)' : 'transparent',
+                border: 'none',
+                borderRadius: '50%',
+                width: '32px',
+                height: '32px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                color: selectedImage ? '#38bdf8' : '#94a3b8'
+              }}
+            >
+              <CameraIcon size={18} />
+            </button>
+
+            {/* Voice Mic Button */}
+            <button
+              type="button"
+              onClick={toggleSpeechRecognition}
+              title="تحدث بالصوت"
+              style={{
+                background: isListening ? 'rgba(239, 68, 68, 0.25)' : 'transparent',
+                border: isListening ? '1px solid #ef4444' : 'none',
+                borderRadius: '50%',
+                width: '32px',
+                height: '32px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                color: isListening ? '#f87171' : '#94a3b8',
+                animation: isListening ? 'pulse 1s infinite alternate' : 'none'
+              }}
+            >
+              <Mic size={18} />
+            </button>
+
+            {/* Text Input */}
+            <input
+              type="text"
+              placeholder={isListening ? t.voiceListeningToast : t.chatInputPlaceholder}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              disabled={loading}
+              style={{
+                flex: 1,
+                background: 'transparent',
+                border: 'none',
+                color: '#ffffff',
+                fontSize: '13px',
+                outline: 'none',
+                padding: '6px 4px'
+              }}
+            />
+
+            {/* Send Button */}
+            <button
+              type="submit"
+              disabled={(!input.trim() && !selectedImage) || loading}
+              style={{
+                width: '36px',
+                height: '36px',
+                borderRadius: '50%',
+                background: (input.trim() || selectedImage) ? theme.gradient : 'rgba(255, 255, 255, 0.1)',
+                border: 'none',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: (input.trim() || selectedImage) ? 'pointer' : 'default',
+                boxShadow: (input.trim() || selectedImage) ? `0 2px 10px ${theme.glow}` : 'none',
+                transition: 'all 0.2s'
+              }}
+            >
+              <Send size={15} color={(input.trim() || selectedImage) ? '#ffffff' : '#64748b'} />
+            </button>
+          </form>
+        </div>
       </div>
       </>
       )}
