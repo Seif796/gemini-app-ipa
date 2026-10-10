@@ -17,7 +17,7 @@ import LanguageToggle from './LanguageToggle';
 import FriendChatRoom from './FriendChatRoom';
 import { getAppLanguage, getTranslation } from '../i18n';
 
-export default function ChatTab({ showToast, onStartCall, onSwitchTab }) {
+export default function ChatTab({ showToast, onStartCall, onSwitchTab, onOpenAbout }) {
   const [lang, setLang] = useState(getAppLanguage());
   const t = getTranslation(lang);
 
@@ -469,7 +469,11 @@ export default function ChatTab({ showToast, onStartCall, onSwitchTab }) {
         alignItems: 'center',
         justifyContent: 'space-between'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        <div 
+          onClick={() => onOpenAbout && onOpenAbout()} 
+          style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: onOpenAbout ? 'pointer' : 'default' }}
+          title={lang === 'ar' ? 'حول التطبيق والمعلومات' : 'About App & Info'}
+        >
           <AppIconBadge size={38} radius={12} />
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>

@@ -140,7 +140,27 @@ const translations = {
 
     // Notes & Tasks
     notesHeaderTitle: 'ملاحظاتي الذكية',
-    tasksHeaderTitle: 'قائمة المهام والتذكيرات'
+    tasksHeaderTitle: 'قائمة المهام والتذكيرات',
+
+    // About App
+    aboutAppTitle: 'حول التطبيق (About App)',
+    aboutAppSubtitle: 'معلومات الإصدار، المطور، والمميزات الذكية',
+    appVersionLabel: 'الإصدار الحالي',
+    appDeveloperLabel: 'المطور',
+    appPoweredByLabel: 'محرك الذكاء الاصطناعي',
+    appStatusLabel: 'حالة النظام',
+    appStatusValue: 'متصل وجاهز 24/7 🟢',
+    aboutDescription: 'تطبيق متكامل يجمع بين قوة الذكاء الاصطناعي التوليدي من Google Gemini والتواصل الاجتماعي الحقيقي بين الأصدقاء، مع مكالمات صوت وفيديو، رادار القرب، وإدارة وقت الشاشة.',
+    aboutFeaturesTitle: 'أبرز مميزات التطبيق 🌟',
+    featureGeminiAi: 'مساعد ذكي فائق السرعة يدعم الصوت والصور وحل المسائل',
+    featureFriendsDm: 'مراسلة فورية مشفرة ومجموعات مع @gemini',
+    featureCalls: 'مكالمات صوت وفيديو مباشرة عالية الجودة (HD)',
+    featureRadar: 'رادار المسافة وتنبيهات القرب والابتعاد التلقائية',
+    featureAccounts: 'إمكانية تشغيل والتبديل بين عدة حسابات',
+    featureScreenTime: 'إدارة وقت الشاشة والتنبيهات لحماية صحتك',
+    featurePrivacy: 'أمان وخصوصية 100% مع تشفير وحفظ البيانات محلياً',
+    copyAppInfo: 'نسخ معلومات التطبيق 📋',
+    appInfoCopied: 'تم نسخ معلومات التطبيق إلى الحافظة! 📋'
   },
 
   en: {
@@ -279,7 +299,27 @@ const translations = {
 
     // Notes & Tasks
     notesHeaderTitle: 'Smart Notes',
-    tasksHeaderTitle: 'Tasks & Reminders'
+    tasksHeaderTitle: 'Tasks & Reminders',
+
+    // About App
+    aboutAppTitle: 'About App',
+    aboutAppSubtitle: 'Version info, developer, and smart features',
+    appVersionLabel: 'Current Version',
+    appDeveloperLabel: 'Developer',
+    appPoweredByLabel: 'AI Engine',
+    appStatusLabel: 'System Status',
+    appStatusValue: 'Online & Ready 24/7 🟢',
+    aboutDescription: 'An all-in-one companion bringing together Google Gemini multimodal AI with real-time social connection, HD voice & video calling, proximity radar, and smart screen time management.',
+    aboutFeaturesTitle: 'Core Capabilities 🌟',
+    featureGeminiAi: 'Ultra-fast AI assistant with voice, image analysis & problem solving',
+    featureFriendsDm: 'Real-time encrypted DM & group chat with @gemini mentions',
+    featureCalls: 'Direct HD peer-to-peer voice & video calling',
+    featureRadar: 'Proximity radar with automated nearby & departed alerts',
+    featureAccounts: 'Multi-account management with 1-tap switching',
+    featureScreenTime: 'Screen time limits and break reminders for digital wellbeing',
+    featurePrivacy: '100% private with local client-side encrypted storage',
+    copyAppInfo: 'Copy App Information 📋',
+    appInfoCopied: 'App info copied to clipboard! 📋'
   }
 };
 

@@ -21,6 +21,7 @@ import ScreenTimeOverlay from './components/ScreenTimeOverlay';
 import UsernameModal from './components/UsernameModal';
 import CallModal from './components/CallModal';
 import AccountSwitcherModal from './components/AccountSwitcherModal';
+import AboutModal from './components/AboutModal';
 
 export default function App() {
   const [myUsername, setMyUsername] = useState(() => getCurrentUsername());
@@ -32,6 +33,7 @@ export default function App() {
   const [screenTime, setScreenTime] = useState(() => getScreenTimeData());
   const [callState, setCallState] = useState(null); // { isOpen, isIncoming, callType, friend, status }
   const [isAccountSwitcherOpen, setIsAccountSwitcherOpen] = useState(false);
+  const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);
   const continuousMinutesRef = useRef(0);
 
   useEffect(() => {
@@ -322,6 +324,7 @@ export default function App() {
             showToast={showToast} 
             onStartCall={handleStartCall} 
             onSwitchTab={(t) => setCurrentTab(t)} 
+            onOpenAbout={() => setIsAboutModalOpen(true)}
           />
         )}
         {currentTab === 'friends' && (
@@ -336,7 +339,12 @@ export default function App() {
         {currentTab === 'notes' && <NotesTab showToast={showToast} onTaskAdded={() => {}} />}
         {currentTab === 'tasks' && <TasksTab showToast={showToast} />}
         {currentTab === 'settings' && (
-          <SettingsTab user={currentUser} onLogout={handleLogout} showToast={showToast} />
+          <SettingsTab 
+            user={currentUser} 
+            onLogout={handleLogout} 
+            showToast={showToast} 
+            onOpenAbout={() => setIsAboutModalOpen(true)}
+          />
         )}
       </main>
 
@@ -379,6 +387,13 @@ export default function App() {
           setMyUsername(username);
           setCurrentUser({ name: username, email: `${username}@seif-ai.local` });
         }}
+        showToast={showToast}
+      />
+
+      {/* Dedicated About App Modal */}
+      <AboutModal
+        isOpen={isAboutModalOpen}
+        onClose={() => setIsAboutModalOpen(false)}
         showToast={showToast}
       />
     </div>

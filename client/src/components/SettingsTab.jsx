@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, LogOut, CheckCircle2, Hourglass, Clock, ShieldAlert, Volume2, UserCheck, Globe } from 'lucide-react';
+import { 
+  Bell, LogOut, CheckCircle2, Hourglass, Clock, ShieldAlert, 
+  Volume2, UserCheck, Globe, Info, Sparkles, Code2, Cpu 
+} from 'lucide-react';
 import { getActiveTheme } from '../themeIcons';
 import { getScreenTimeData, saveScreenTimeData, formatMinutes, formatSeconds } from '../screenTime';
 import { notifications } from '../notifications';
@@ -8,11 +11,13 @@ import { getCurrentUsername } from '../friendsApi';
 import { getAppLanguage, setAppLanguage, getTranslation } from '../i18n';
 import AppIconBadge from './AppIconBadge';
 import LanguageToggle from './LanguageToggle';
+import AboutModal from './AboutModal';
 
-export default function SettingsTab({ user, onLogout, showToast }) {
+export default function SettingsTab({ user, onLogout, showToast, onOpenAbout }) {
   const [lang, setLang] = useState(getAppLanguage());
   const t = getTranslation(lang);
   const [screenTime, setScreenTime] = useState(getScreenTimeData());
+  const [isAboutOpen, setIsAboutOpen] = useState(false);
 
   useEffect(() => {
     const handleSt = (e) => {
@@ -65,7 +70,30 @@ export default function SettingsTab({ user, onLogout, showToast }) {
           <h1 style={{ fontSize: '20px', fontWeight: '700' }}>{t.settingsHeaderTitle}</h1>
           <p style={{ fontSize: '12px', color: '#94a3b8' }}>{t.settingsHeaderSubtitle}</p>
         </div>
-        <LanguageToggle compact={true} showToast={showToast} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button
+            onClick={() => {
+              if (onOpenAbout) onOpenAbout();
+              else setIsAboutOpen(true);
+            }}
+            title={t.aboutAppTitle}
+            style={{
+              width: '32px',
+              height: '32px',
+              borderRadius: '50%',
+              background: 'rgba(56, 189, 248, 0.15)',
+              border: '1px solid rgba(56, 189, 248, 0.3)',
+              color: '#38bdf8',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer'
+            }}
+          >
+            <Info size={16} />
+          </button>
+          <LanguageToggle compact={true} showToast={showToast} />
+        </div>
       </header>
 
       {/* Content Area */}
@@ -177,30 +205,69 @@ export default function SettingsTab({ user, onLogout, showToast }) {
           </div>
         </div>
 
-        {/* 🎨 Official App Icon Display */}
-        <div className="glass-panel" style={{ padding: '16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-              <AppIconBadge size={56} radius={18} showBorder={true} />
-              <div>
-                <div style={{ fontSize: '15px', fontWeight: '700', color: '#fff', marginBottom: '2px' }}>
-                  {t.appName}
-                </div>
-                <div style={{ fontSize: '12px', color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <CheckCircle2 size={13} /> {t.logoCardDesc}
-                </div>
+        {/* ℹ️ About App & Developer Card */}
+        <div className="glass-panel" style={{ padding: '16px', border: '1px solid rgba(56, 189, 248, 0.25)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Info size={18} color="#38bdf8" />
+              <h3 style={{ fontSize: '15px', fontWeight: '700', color: '#fff' }}>
+                {t.aboutAppTitle || 'حول التطبيق'}
+              </h3>
+            </div>
+            <span style={{
+              fontSize: '11px',
+              padding: '2px 8px',
+              borderRadius: '8px',
+              background: 'rgba(56, 189, 248, 0.15)',
+              color: '#38bdf8',
+              fontWeight: '700'
+            }}>
+              v2.5.0
+            </span>
+          </div>
+
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '14px',
+            background: 'rgba(255, 255, 255, 0.03)',
+            padding: '12px',
+            borderRadius: '16px',
+            marginBottom: '12px'
+          }}>
+            <AppIconBadge size={52} radius={16} showBorder={true} />
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: '15px', fontWeight: '800', color: '#fff', marginBottom: '2px' }}>
+                Seif AI Companion
+              </div>
+              <div style={{ fontSize: '12px', color: '#94a3b8', lineHeight: '1.3' }}>
+                {lang === 'ar' ? 'تطوير: سيف • محرك الذكاء: Gemini 2.5' : 'Developer: Seif • Powered by Gemini 2.5'}
               </div>
             </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+            <button
+              onClick={() => {
+                if (onOpenAbout) onOpenAbout();
+                else setIsAboutOpen(true);
+              }}
+              className="ios-button-primary"
+              style={{ padding: '10px', fontSize: '12px', gap: '6px', justifyContent: 'center' }}
+            >
+              <Info size={14} />
+              <span>{lang === 'ar' ? 'تفاصيل التطبيق ℹ️' : 'About Details ℹ️'}</span>
+            </button>
+
             <button
               onClick={() => {
                 logoSound.playLogoSound();
                 showToast(t.logoSoundToast, 'success');
               }}
               className="ios-button-secondary"
-              style={{ padding: '8px 12px', fontSize: '12px', gap: '6px' }}
-              title={t.logoCardDesc}
+              style={{ padding: '10px', fontSize: '12px', gap: '6px', justifyContent: 'center' }}
             >
-              <Volume2 size={15} color="#38bdf8" />
+              <Volume2 size={14} color="#38bdf8" />
               <span>{lang === 'ar' ? 'صوت الشعار 🎵' : 'Logo Chime 🎵'}</span>
             </button>
           </div>
@@ -360,6 +427,13 @@ export default function SettingsTab({ user, onLogout, showToast }) {
           </button>
         </div>
       </div>
+
+      {/* About App Modal */}
+      <AboutModal
+        isOpen={isAboutOpen}
+        onClose={() => setIsAboutOpen(false)}
+        showToast={showToast}
+      />
     </div>
   );
 }
