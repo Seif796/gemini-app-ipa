@@ -3,11 +3,6 @@
   "appName": "Seif Ai Test",
   "webDir": "dist",
   "bundledWebRuntime": false,
-  "backgroundColor": "#07090e",
-  "server": {
-    "iosScheme": "capacitor",
-    "allowNavigation": ["*"]
-  },
   "ios": {
     "contentInset": "automatic",
     "allowsLinkPreview": false,
@@ -15,4 +10,3 @@
     "preferredContentMode": "mobile"
   }
 }
-

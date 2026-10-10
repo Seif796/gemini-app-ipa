@@ -3,7 +3,7 @@ import { defineConfig } from 'vite'
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: './',
+  base: '/',
   plugins: [react()],
   build: {
     target: ['es2020', 'safari14', 'ios14'],
@@ -12,4 +12,3 @@ export default defineConfig({
     sourcemap: false
   }
 })
-
