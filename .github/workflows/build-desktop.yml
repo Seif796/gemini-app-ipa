@@ -5,6 +5,9 @@ on:
     branches: [ main, master ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build-windows:
     name: Build & Package Windows Laptop App
@@ -29,16 +32,20 @@ jobs:
           cd client
           npm run build
 
-      - name: Package Windows Desktop App (.EXE)
+      - name: Package Windows Desktop App (.EXE & Portable)
         run: |
           cd client
-          npx electron-builder --win --x64
+          npx electron-builder --win --x64 --publish never -c.win.signAndEditExecutable=false
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
 
-      - name: List Generated Executables
+      - name: Create Portable Zip Archive
         run: |
-          Get-ChildItem -Path client/release -Recurse
+          cd client/release
+          if (Test-Path win-unpacked) {
+            Compress-Archive -Path win-unpacked/* -DestinationPath "Seif-AI-Laptop-Portable.zip" -Force
+          }
+          Get-ChildItem -Path . -Recurse
 
       - name: Upload Windows Laptop App Artifact
         uses: actions/upload-artifact@v4
@@ -46,5 +53,16 @@ jobs:
           name: Seif-AI-Laptop-Windows-App
           path: |
             client/release/*.exe
-            client/release/*.blockmap
+            client/release/*.zip
           retention-days: 14
+
+      - name: Publish Desktop Files to GitHub Release (No Login Needed)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: "Seif AI Companion - Latest Release (iOS .IPA + Laptop .EXE)"
+          files: |
+            client/release/*.exe
+            client/release/*.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

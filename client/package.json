@@ -2,6 +2,8 @@
   "name": "aether-gemini-companion-client",
   "private": true,
   "version": "1.0.0",
+  "description": "Seif AI Companion for iOS & Desktop",
+  "author": "Seif",
   "type": "module",
   "main": "electron/main.cjs",
   "scripts": {
@@ -12,8 +14,8 @@
     "cap:add": "cap add ios",
     "electron": "electron electron/main.cjs",
     "desktop": "vite build && electron electron/main.cjs",
-    "build:desktop": "vite build && electron-builder --win --x64",
-    "build:desktop:dir": "vite build && electron-builder --dir"
+    "build:desktop": "vite build && electron-builder --win --x64 --publish never",
+    "build:desktop:dir": "vite build && electron-builder --dir --publish never"
   },
   "build": {
     "appId": "com.seif.aicompanion.desktop",
@@ -30,9 +32,11 @@
     "win": {
       "target": [
         "nsis",
-        "portable"
+        "portable",
+        "zip"
       ],
-      "icon": "public/app-icon.png"
+      "icon": "public/app-icon.png",
+      "signAndEditExecutable": false
     },
     "nsis": {
       "oneClick": false,

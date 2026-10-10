@@ -5,6 +5,9 @@ on:
     branches: [ main, master ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build-ios:
     name: Build & Package iOS .IPA
@@ -54,7 +57,7 @@ jobs:
             AD_HOC_CODE_SIGNING_ALLOWED=YES \
             clean build
 
-      - name: Package .IPA
+      - name: Package .IPA & ZIP
         run: |
           cd client/ios/App
           APP_PATH=$(find build -name "App.app" -type d | head -n 1)
@@ -62,12 +65,37 @@ jobs:
           mkdir -p Payload
           cp -r "$APP_PATH" Payload/
           zip -qr Seif-Ai-Test.ipa Payload
-          echo "IPA packaging successful!"
-          ls -lh Seif-Ai-Test.ipa
+          zip -qr Seif-Ai-Test-iOS.zip Seif-Ai-Test.ipa
+          echo "IPA & ZIP packaging successful!"
+          ls -lh Seif-Ai-Test.ipa Seif-Ai-Test-iOS.zip
 
-      - name: Upload .IPA Artifact
+      - name: Upload .IPA Artifact to GitHub Actions
         uses: actions/upload-artifact@v4
         with:
           name: Seif-Ai-Test-iOS-IPA
-          path: client/ios/App/Seif-Ai-Test.ipa
+          path: |
+            client/ios/App/Seif-Ai-Test.ipa
+            client/ios/App/Seif-Ai-Test-iOS.zip
           retention-days: 14
+
+      - name: Publish Direct Release on GitHub (No Login Needed)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: "Seif AI Companion - Latest Release (iOS .IPA + Laptop .EXE)"
+          body: |
+            ## 📱 Seif AI Companion - Direct Download Links
+
+            ### 🍏 iPhone (iOS)
+            - **Direct .IPA File:** [Download Seif-Ai-Test.ipa](https://github.com/${{ github.repository }}/releases/download/latest/Seif-Ai-Test.ipa)
+            - **Zip Archive:** [Download Seif-Ai-Test-iOS.zip](https://github.com/${{ github.repository }}/releases/download/latest/Seif-Ai-Test-iOS.zip)
+
+            ### 💻 Laptop / Computer (Windows)
+            - See Desktop Assets attached below or in the Desktop release workflow.
+
+            > ⚡ **Direct download:** No login required! Simply tap the link above to download.
+          files: |
+            client/ios/App/Seif-Ai-Test.ipa
+            client/ios/App/Seif-Ai-Test-iOS.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
