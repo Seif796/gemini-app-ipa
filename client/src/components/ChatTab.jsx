@@ -15,7 +15,22 @@ export default function ChatTab({ showToast }) {
   const [lang, setLang] = useState(getAppLanguage());
   const t = getTranslation(lang);
 
-  const [messages, setMessages] = useState([]);
+  const [messages, setMessages] = useState(() => {
+    try {
+      const raw = localStorage.getItem('aether_local_chats');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (_) {}
+    return [
+      {
+        id: 'welcome',
+        role: 'model',
+        content: "👋 مرحباً بك في **Seif Ai Test**!\n\nأنا مساعدك الذكي السريع على مدار 24 ساعة. اسألني أي سؤال أو التقط مسألة بالكاميرا لحلها، أو قل: **\"فكرني بعد 5 دقائق بـ...\"** لضبط تنبيهات حقيقية!"
+      }
+    ];
+  });
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [model, setModel] = useState('gemini-flash-lite-latest');

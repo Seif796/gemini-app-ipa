@@ -67,9 +67,9 @@ export function initLocationTracking(onLocationUpdate) {
   };
 
   const options = {
-    enableHighAccuracy: true,
-    timeout: 15000,
-    maximumAge: 60000
+    enableHighAccuracy: false,
+    timeout: 8000,
+    maximumAge: 120000
   };
 
   try {
@@ -139,3 +139,4 @@ export function findNearbyFriends(myUsername, registry) {
 
   return nearby;
 }
+

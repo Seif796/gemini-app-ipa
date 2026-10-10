@@ -3,16 +3,12 @@ import { notifications, playNotificationSound } from './notifications';
 import { getTranslation } from './i18n';
 import { findNearbyFriends, getLastKnownLocation } from './locationService';
 
-const MASTER_REGISTRY_ID = 'ff808181a09d98f701a122e81b8f31c6';
-const CLOUD_URL = `https://api.restful-api.dev/objects/${MASTER_REGISTRY_ID}`;
-
 // Local storage keys
 const KEY_USERNAME = 'seif_username';
-const KEY_LOCAL_REGISTRY = 'seif_local_registry_cache';
+const KEY_REGISTRY = 'seif_local_registry_v3';
 
-// In-memory cache
-let registryCache = null;
-let lastFetchTime = 0;
+// ntfy.sh Real-Time Cloud Sync Prefix (Free, unlimited, zero credentials required)
+const NTFY_PREFIX = 'https://ntfy.sh/seif_companion_';
 
 export function getCurrentUsername() {
   try {
@@ -32,7 +28,8 @@ export function setCurrentUsername(username) {
   } catch (_) {}
 }
 
-// Helper: Normalize registry structure safely
+// ---------------- LOCAL REGISTRY HELPERS ----------------
+
 function sanitizeRegistry(raw) {
   const d = raw || {};
   return {
@@ -44,89 +41,76 @@ function sanitizeRegistry(raw) {
   };
 }
 
-// Fetch master registry with strict 2-second timeout and instant local fallback
-export async function getMasterRegistry(force = false) {
-  const now = Date.now();
-  if (!force && registryCache && (now - lastFetchTime < 3000)) {
-    return registryCache;
-  }
-
-  // Load local cache first so we always have something valid
-  if (!registryCache) {
-    const local = localStorage.getItem(KEY_LOCAL_REGISTRY);
-    if (local) {
-      try {
-        registryCache = sanitizeRegistry(JSON.parse(local));
-      } catch (_) {}
+export function getLocalRegistry() {
+  try {
+    const raw = localStorage.getItem(KEY_REGISTRY);
+    if (raw) {
+      return sanitizeRegistry(JSON.parse(raw));
     }
-  }
+  } catch (_) {}
+  const empty = sanitizeRegistry({});
+  saveLocalRegistry(empty);
+  return empty;
+}
 
-  if (!registryCache) {
-    registryCache = sanitizeRegistry({});
-  }
+export function saveLocalRegistry(registry) {
+  try {
+    localStorage.setItem(KEY_REGISTRY, JSON.stringify(registry));
+  } catch (_) {}
+  return registry;
+}
 
-  // Attempt non-blocking fast cloud sync (max 2 seconds timeout)
+// Publish event to a cloud topic via ntfy.sh (fire & forget, non-blocking)
+async function publishCloudEvent(topic, data) {
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2000);
-
-    const res = await fetch(CLOUD_URL, { signal: controller.signal });
-    clearTimeout(timeoutId);
-
-    if (res.ok) {
-      const json = await res.json();
-      if (json && json.data) {
-        registryCache = sanitizeRegistry(json.data);
-        try {
-          localStorage.setItem(KEY_LOCAL_REGISTRY, JSON.stringify(registryCache));
-        } catch (_) {}
-        return registryCache;
-      }
-    }
-  } catch (err) {
-    // Cloud slow or offline, continue with local cache smoothly
+    const tId = setTimeout(() => controller.abort(), 3000);
+    await fetch(`${NTFY_PREFIX}${topic}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+      signal: controller.signal
+    });
+    clearTimeout(tId);
+  } catch (_) {
+    // Non-blocking sync failure is safe
   }
-
-  return registryCache;
 }
 
-// Save master registry to local cache immediately and sync to cloud in background
-export async function saveMasterRegistry(data) {
-  const cleanData = sanitizeRegistry(data);
-  registryCache = cleanData;
+// Poll cloud inbox events for current user
+async function pollCloudInbox(username) {
+  if (!username) return [];
   try {
-    localStorage.setItem(KEY_LOCAL_REGISTRY, JSON.stringify(cleanData));
-  } catch (_) {}
-  lastFetchTime = Date.now();
+    const controller = new AbortController();
+    const tId = setTimeout(() => controller.abort(), 2500);
+    const res = await fetch(`${NTFY_PREFIX}inbox_${username}/json?poll=1&since=24h`, {
+      signal: controller.signal
+    });
+    clearTimeout(tId);
 
-  // Background Cloud Sync - Never blocks UI
-  (async () => {
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 3500);
+    if (!res.ok) return [];
+    const text = await res.text();
+    if (!text.trim()) return [];
 
-      await fetch(CLOUD_URL, {
-        method: 'PUT',
-        signal: controller.signal,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: 'seif_ai_master_registry_v1',
-          data: {
-            ...cleanData,
-            updatedAt: new Date().toISOString()
-          }
-        })
-      });
-      clearTimeout(timeoutId);
-    } catch (err) {
-      // Ignore background sync errors, local cache remains safe
+    const lines = text.trim().split('\n');
+    const events = [];
+    for (const line of lines) {
+      try {
+        const item = JSON.parse(line);
+        if (item && item.message) {
+          const payload = typeof item.message === 'string' ? JSON.parse(item.message) : item.message;
+          events.push(payload);
+        }
+      } catch (_) {}
     }
-  })();
-
-  return registryCache;
+    return events;
+  } catch (_) {
+    return [];
+  }
 }
 
-// 1. User Registration / Permanent Sign-In
+// ---------------- 1. USER AUTH / REGISTRATION ----------------
+
 export async function registerOrLoginUsername(rawUsername, isExistingLogin = false) {
   const t = getTranslation();
   const username = (rawUsername || '').toLowerCase().replace(/^@+/, '').trim();
@@ -140,35 +124,27 @@ export async function registerOrLoginUsername(rawUsername, isExistingLogin = fal
     throw new Error(t.errInvalidUsernameChars || 'اسم المستخدم يجب ألا يحتوي على مسافات أو رموز خاصة');
   }
 
-  const registry = await getMasterRegistry(true);
-
-  if (isExistingLogin) {
-    // Logging into an existing account
-    if (!registry.users || !registry.users[username]) {
-      throw new Error(t.errUsernameNotRegistered || `اسم المستخدم @${username} غير مسجل مسبقاً!`);
-    }
-    setCurrentUsername(username);
-    return registry.users[username];
-  }
-
-  // New user registration
-  if (registry.users && registry.users[username]) {
-    throw new Error(t.errUsernameTaken || 'اسم المستخدم هذا موجود بالفعل! اختر اسماً آخر.');
-  }
-
-  // Create user
+  const registry = getLocalRegistry();
   registry.users = registry.users || {};
-  registry.users[username] = {
+
+  const userObj = {
     username,
-    createdAt: new Date().toISOString()
+    createdAt: new Date().toISOString(),
+    lastActive: Date.now()
   };
 
-  await saveMasterRegistry(registry);
+  registry.users[username] = userObj;
+  saveLocalRegistry(registry);
   setCurrentUsername(username);
-  return registry.users[username];
+
+  // Announce user on cloud
+  publishCloudEvent('users_v3', { type: 'user_active', username });
+
+  return userObj;
 }
 
-// 2. Send Friend Request
+// ---------------- 2. FRIEND REQUESTS ----------------
+
 export async function sendFriendRequest(targetUsername) {
   const t = getTranslation();
   const myUsername = getCurrentUsername();
@@ -181,12 +157,7 @@ export async function sendFriendRequest(targetUsername) {
     throw new Error(t.errCannotAddSelf || 'لا يمكنك إرسال طلب صداقة لنفسك!');
   }
 
-  const registry = await getMasterRegistry(true);
-
-  // Validate that user exists in registry
-  if (!registry.users || !registry.users[cleanTarget]) {
-    throw new Error(t.errUsernameNotFound || `الاسم غير موجود! تأكد من كتابة اسم المستخدم @${cleanTarget} بشكل صحيح.`);
-  }
+  const registry = getLocalRegistry();
 
   // Check if already friends
   const myFriends = (registry.friendships && registry.friendships[myUsername]) || [];
@@ -217,22 +188,30 @@ export async function sendFriendRequest(targetUsername) {
 
   registry.friendRequests = registry.friendRequests || [];
   registry.friendRequests.push(newRequest);
+  saveLocalRegistry(registry);
 
-  await saveMasterRegistry(registry);
+  // Send real-time notification to the target user via their cloud inbox
+  publishCloudEvent(`inbox_${cleanTarget}`, {
+    type: 'friend_request',
+    request: newRequest,
+    from: myUsername,
+    time: Date.now()
+  });
+
   return newRequest;
 }
 
-// 3. Accept Friend Request
+// ---------------- 3. ACCEPT FRIEND REQUEST ----------------
+
 export async function acceptFriendRequest(requestId) {
   const myUsername = getCurrentUsername();
-  const registry = await getMasterRegistry(true);
+  const registry = getLocalRegistry();
 
   const req = (registry.friendRequests || []).find(r => r.id === requestId);
   if (!req) throw new Error('طلب الصداقة غير موجود');
 
   req.status = 'accepted';
   req.acceptedAt = Date.now();
-  req.notifiedToSender = false; // Sender will be notified when they open app / poll
 
   // Add friendship both ways
   registry.friendships = registry.friendships || {};
@@ -246,43 +225,52 @@ export async function acceptFriendRequest(requestId) {
     registry.friendships[req.to].push(req.from);
   }
 
-  await saveMasterRegistry(registry);
+  saveLocalRegistry(registry);
 
-  // Send celebratory notification to the person accepting
+  // Send celebratory notification to User A (the one accepting)
   try {
     notifications.sendNow('🎉 مبروك!', `قبلت صديقك @${req.from} وأصبحتم أصدقاء الآن! ابدأ الدردشة معه 🤝`);
   } catch (_) {}
 
+  // Send celebratory event to User B (the sender of the request)
+  publishCloudEvent(`inbox_${req.from}`, {
+    type: 'friend_accepted',
+    by: myUsername,
+    requestId: req.id,
+    time: Date.now()
+  });
+
   return req;
 }
 
-// 4. Reject Friend Request
+// ---------------- 4. REJECT FRIEND REQUEST ----------------
+
 export async function rejectFriendRequest(requestId) {
-  const registry = await getMasterRegistry(true);
+  const registry = getLocalRegistry();
   const req = (registry.friendRequests || []).find(r => r.id === requestId);
   if (req) {
     req.status = 'rejected';
-    await saveMasterRegistry(registry);
+    saveLocalRegistry(registry);
   }
   return true;
 }
 
-// 5. Get User Friends & Requests
+// ---------------- 5. GET USER FRIENDS & REQUESTS ----------------
+
 export async function getFriendsData() {
   const myUsername = getCurrentUsername();
   if (!myUsername) return { friends: [], incomingRequests: [], outgoingRequests: [] };
 
-  const registry = await getMasterRegistry();
+  const registry = getLocalRegistry();
 
-  const friendships = (registry && registry.friendships) ? registry.friendships : {};
+  const friendships = registry.friendships || {};
   const rawFriends = friendships[myUsername];
   const friends = Array.isArray(rawFriends) ? rawFriends : [];
 
-  const rawReqs = (registry && Array.isArray(registry.friendRequests)) ? registry.friendRequests : [];
+  const rawReqs = Array.isArray(registry.friendRequests) ? registry.friendRequests : [];
   const incomingRequests = rawReqs.filter(
     r => r && r.to === myUsername && r.status === 'pending'
   );
-
   const outgoingRequests = rawReqs.filter(
     r => r && r.from === myUsername && r.status === 'pending'
   );
@@ -290,54 +278,51 @@ export async function getFriendsData() {
   return { friends, incomingRequests, outgoingRequests };
 }
 
-// Helper: Room key for 2 users
+// ---------------- 6. CHAT ROOMS & MESSAGES ----------------
+
 export function getChatRoomKey(user1, user2) {
   const u1 = (user1 || '').toLowerCase().trim();
   const u2 = (user2 || '').toLowerCase().trim();
   return [u1, u2].sort().join('___');
 }
 
-// 6. Get Chat Messages
 export async function getChatMessages(friendUsername) {
   if (!friendUsername) return { messages: [], isBotEnabled: false };
   const myUsername = getCurrentUsername();
   const roomKey = getChatRoomKey(myUsername, friendUsername);
-  const registry = await getMasterRegistry();
+  const registry = getLocalRegistry();
 
-  const chatRooms = (registry && registry.chatRooms) ? registry.chatRooms : {};
+  const chatRooms = registry.chatRooms || {};
   const rawMessages = chatRooms[roomKey];
   const messages = Array.isArray(rawMessages) ? rawMessages : [];
-  const isBotEnabled = Boolean(registry && registry.botSettings && registry.botSettings[roomKey]);
+  const isBotEnabled = Boolean(registry.botSettings && registry.botSettings[roomKey]);
 
   return { messages, isBotEnabled };
 }
 
-// 7. Toggle Bot in Chat Room
 export async function toggleBotInChat(friendUsername) {
   const myUsername = getCurrentUsername();
   const roomKey = getChatRoomKey(myUsername, friendUsername);
-  const registry = await getMasterRegistry(true);
+  const registry = getLocalRegistry();
 
   registry.botSettings = registry.botSettings || {};
   const current = Boolean(registry.botSettings[roomKey]);
   registry.botSettings[roomKey] = !current;
 
-  // Add system notice message in chat
   registry.chatRooms = registry.chatRooms || {};
   registry.chatRooms[roomKey] = registry.chatRooms[roomKey] || [];
   registry.chatRooms[roomKey].push({
     id: 'sys_' + Date.now(),
     sender: 'system',
-    text: !current ? '🤖 تم تفعيل البوت الذكي (Seif AI) في المحادثة! يمكنك توجيه أي سؤال له.' : 'تم إيقاف البوت الذكي من المحادثة.',
+    text: !current ? '🤖 تم تفعيل البوت الذكي (Seif AI) في المحادثة!' : 'تم إيقاف البوت الذكي من المحادثة.',
     timestamp: Date.now(),
     isSystem: true
   });
 
-  await saveMasterRegistry(registry);
+  saveLocalRegistry(registry);
   return !current;
 }
 
-// 8. Send Message in Friend Chat (with AI Bot integration)
 export async function sendFriendMessage(friendUsername, text) {
   const myUsername = getCurrentUsername();
   if (!myUsername) throw new Error('يرجى تسجيل الدخول أولاً');
@@ -346,7 +331,7 @@ export async function sendFriendMessage(friendUsername, text) {
   if (!cleanText) return null;
 
   const roomKey = getChatRoomKey(myUsername, friendUsername);
-  const registry = await getMasterRegistry(true);
+  const registry = getLocalRegistry();
 
   registry.chatRooms = registry.chatRooms || {};
   registry.chatRooms[roomKey] = registry.chatRooms[roomKey] || [];
@@ -360,166 +345,201 @@ export async function sendFriendMessage(friendUsername, text) {
   };
 
   registry.chatRooms[roomKey].push(userMsg);
-  await saveMasterRegistry(registry);
+  saveLocalRegistry(registry);
 
-  // Check if Bot is enabled or mentioned
+  // Publish to recipient's inbox and room channel
+  publishCloudEvent(`inbox_${friendUsername}`, {
+    type: 'dm_message',
+    message: userMsg,
+    friend: myUsername,
+    time: Date.now()
+  });
+
+  // Check Bot integration
   const isBotEnabled = Boolean(registry.botSettings?.[roomKey]);
   const isBotMentioned = cleanText.toLowerCase().includes('@bot') || cleanText.includes('@بوت') || cleanText.includes('@ai');
 
   if (isBotEnabled || isBotMentioned) {
-    // Generate AI Bot reply asynchronously
     triggerBotResponse(roomKey, myUsername, friendUsername, cleanText);
   }
 
   return userMsg;
 }
 
-// Async Bot Responder
 async function triggerBotResponse(roomKey, sender, friend, prompt) {
   try {
     const systemPrompt = `You are "Seif AI Bot", an intelligent, friendly AI assistant participating in a group chat between two friends: @${sender} and @${friend}.
-Answer naturally, helpfully, and concisely in the same language they are speaking (Arabic/English).
-Keep answers punchy and fun for chat.`;
+Answer naturally, helpfully, and concisely in Arabic/English. Keep answers punchy and fun.`;
 
     const res = await directGeminiCall(prompt, systemPrompt, [], 'gemini-flash-lite-latest');
     const botReply = res?.reply;
 
     if (botReply) {
-      const freshRegistry = await getMasterRegistry(true);
-      freshRegistry.chatRooms = freshRegistry.chatRooms || {};
-      freshRegistry.chatRooms[roomKey] = freshRegistry.chatRooms[roomKey] || [];
+      const registry = getLocalRegistry();
+      registry.chatRooms = registry.chatRooms || {};
+      registry.chatRooms[roomKey] = registry.chatRooms[roomKey] || [];
 
-      freshRegistry.chatRooms[roomKey].push({
+      const botMsg = {
         id: 'bot_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
         sender: 'Seif AI Bot 🤖',
         text: botReply,
         timestamp: Date.now(),
         isBot: true
-      });
+      };
 
-      await saveMasterRegistry(freshRegistry);
+      registry.chatRooms[roomKey].push(botMsg);
+      saveLocalRegistry(registry);
+
+      publishCloudEvent(`inbox_${friend}`, {
+        type: 'dm_message',
+        message: botMsg,
+        friend: sender,
+        time: Date.now()
+      });
     }
   } catch (err) {
     console.warn('Bot auto-reply error:', err);
   }
 }
 
-// 9. Real-Time DM Message Watcher & Notification Trigger
-const seenMessageIds = new Set();
-let isWatcherInitialized = false;
+// ---------------- 7. REAL-TIME INBOX & NOTIFICATION DISPATCHER ----------------
 
-export function initDmWatcherWithExistingMessages(registry) {
-  if (isWatcherInitialized) return;
-  const myUsername = getCurrentUsername();
-  if (!myUsername) return;
-
-  const chatRooms = (registry && registry.chatRooms) ? registry.chatRooms : {};
-  for (const [roomKey, msgs] of Object.entries(chatRooms)) {
-    if (roomKey.split('___').includes(myUsername) && Array.isArray(msgs)) {
-      for (const m of msgs) {
-        if (m && m.id) {
-          seenMessageIds.add(m.id);
-        }
-      }
-    }
-  }
-  isWatcherInitialized = true;
-}
+const processedEventIds = new Set();
 
 export async function checkNewIncomingDmMessages() {
   const myUsername = getCurrentUsername();
   if (!myUsername) return [];
 
-  const registry = await getMasterRegistry(true);
-  if (!registry) return [];
+  const events = await pollCloudInbox(myUsername);
+  if (!Array.isArray(events) || events.length === 0) return [];
 
-  if (!isWatcherInitialized) {
-    initDmWatcherWithExistingMessages(registry);
-    return [];
-  }
+  const newDmMessages = [];
+  const registry = getLocalRegistry();
+  let modified = false;
 
-  const incoming = [];
-  const chatRooms = (registry && registry.chatRooms) ? registry.chatRooms : {};
+  for (const ev of events) {
+    if (!ev || !ev.type) continue;
+    const eventKey = `${ev.type}_${ev.message?.id || ev.request?.id || ev.requestId || ev.time}`;
+    if (processedEventIds.has(eventKey)) continue;
+    processedEventIds.add(eventKey);
 
-  for (const [roomKey, msgs] of Object.entries(chatRooms)) {
-    const participants = roomKey.split('___');
-    if (!participants.includes(myUsername) || !Array.isArray(msgs)) continue;
+    // 1. Incoming DM Message
+    if (ev.type === 'dm_message' && ev.message) {
+      const m = ev.message;
+      if (m.sender && m.sender !== myUsername) {
+        const friend = ev.friend || m.sender;
+        const roomKey = getChatRoomKey(myUsername, friend);
 
-    for (const m of msgs) {
-      if (!m || !m.id) continue;
-      if (!seenMessageIds.has(m.id)) {
-        seenMessageIds.add(m.id);
-        if (m.sender && m.sender !== myUsername && !m.isSystem) {
-          incoming.push({
-            id: m.id,
-            roomKey,
-            sender: m.sender,
-            text: m.text || '',
-            timestamp: m.timestamp || Date.now(),
-            isBot: Boolean(m.isBot)
-          });
+        registry.chatRooms = registry.chatRooms || {};
+        registry.chatRooms[roomKey] = registry.chatRooms[roomKey] || [];
+
+        // Avoid duplicate message in chat history
+        if (!registry.chatRooms[roomKey].some(x => x.id === m.id)) {
+          registry.chatRooms[roomKey].push(m);
+          modified = true;
         }
+
+        newDmMessages.push({
+          id: m.id,
+          sender: m.sender,
+          text: m.text || '',
+          timestamp: m.timestamp || Date.now(),
+          isBot: Boolean(m.isBot)
+        });
       }
     }
+
+    // 2. Incoming Friend Request
+    else if (ev.type === 'friend_request' && ev.request) {
+      const req = ev.request;
+      registry.friendRequests = registry.friendRequests || [];
+      if (!registry.friendRequests.some(x => x.id === req.id)) {
+        registry.friendRequests.push(req);
+        modified = true;
+      }
+    }
+
+    // 3. Friend Request Accepted
+    else if (ev.type === 'friend_accepted' && ev.by) {
+      const friend = ev.by;
+      registry.friendships = registry.friendships || {};
+      registry.friendships[myUsername] = registry.friendships[myUsername] || [];
+      registry.friendships[friend] = registry.friendships[friend] || [];
+
+      if (!registry.friendships[myUsername].includes(friend)) {
+        registry.friendships[myUsername].push(friend);
+        modified = true;
+      }
+
+      // Mark request as accepted locally
+      if (Array.isArray(registry.friendRequests)) {
+        const found = registry.friendRequests.find(r => r.from === myUsername && r.to === friend);
+        if (found) found.status = 'accepted';
+      }
+
+      // Trigger celebration notification to the sender!
+      try {
+        notifications.sendNow('🎉 مبروك!', `@${friend} قبل طلب صداقتك وأصبحتم أصدقاء الآن! ابدأ الدردشة معه 🤝`);
+      } catch (_) {}
+    }
+
+    // 4. Friend Location Update
+    else if (ev.type === 'friend_location' && ev.sender && ev.lat && ev.lng) {
+      registry.users = registry.users || {};
+      registry.users[ev.sender] = registry.users[ev.sender] || { username: ev.sender };
+      registry.users[ev.sender].location = {
+        lat: ev.lat,
+        lng: ev.lng,
+        updatedAt: ev.time || Date.now()
+      };
+      modified = true;
+    }
   }
-  return incoming;
+
+  if (modified) {
+    saveLocalRegistry(registry);
+  }
+
+  return newDmMessages;
 }
 
-// 10. Update User Real-Time Geolocation Coordinates
+// ---------------- 8. LOCATION & PROXIMITY ----------------
+
 export async function updateUserLocation(lat, lng) {
   const myUsername = getCurrentUsername();
   if (!myUsername || lat == null || lng == null) return;
 
-  const registry = await getMasterRegistry();
-  if (!registry) return;
-
+  const registry = getLocalRegistry();
   registry.users = registry.users || {};
-  if (!registry.users[myUsername]) {
-    registry.users[myUsername] = { username: myUsername, createdAt: new Date().toISOString() };
-  }
-
+  registry.users[myUsername] = registry.users[myUsername] || { username: myUsername };
   registry.users[myUsername].location = {
     lat,
     lng,
     updatedAt: Date.now()
   };
+  saveLocalRegistry(registry);
 
-  await saveMasterRegistry(registry);
+  // Broadcast location to all friends
+  const myFriends = (registry.friendships && registry.friendships[myUsername]) || [];
+  for (const friend of myFriends) {
+    publishCloudEvent(`inbox_${friend}`, {
+      type: 'friend_location',
+      sender: myUsername,
+      lat,
+      lng,
+      time: Date.now()
+    });
+  }
 }
 
-// 11. Check Outgoing Requests That Were Accepted (Notify Sender)
 export async function checkAcceptedFriendships() {
-  const myUsername = getCurrentUsername();
-  if (!myUsername) return [];
-
-  const registry = await getMasterRegistry(true);
-  if (!registry || !Array.isArray(registry.friendRequests)) return [];
-
-  const newlyAccepted = [];
-  let modified = false;
-
-  for (const req of registry.friendRequests) {
-    if (req && req.from === myUsername && req.status === 'accepted' && !req.notifiedToSender) {
-      req.notifiedToSender = true;
-      modified = true;
-      newlyAccepted.push(req.to);
-    }
-  }
-
-  if (modified) {
-    await saveMasterRegistry(registry);
-  }
-
-  return newlyAccepted;
+  return []; // Handled reactively by checkNewIncomingDmMessages
 }
 
-// 12. Check Real-Time Proximity to Nearby Friends (< 500m)
 export async function checkNearbyFriendsAlerts() {
   const myUsername = getCurrentUsername();
   if (!myUsername) return [];
 
-  const registry = await getMasterRegistry();
-  if (!registry) return [];
-
+  const registry = getLocalRegistry();
   return findNearbyFriends(myUsername, registry);
 }

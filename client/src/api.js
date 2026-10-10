@@ -60,7 +60,8 @@ export function setCustomApiKey(key) {
 
 export function isGuestMode() {
   try {
-    return localStorage.getItem('aether_guest_mode') === 'true';
+    const val = localStorage.getItem('aether_guest_mode');
+    return val === null || val === 'true';
   } catch (_) {
     return true;
   }
