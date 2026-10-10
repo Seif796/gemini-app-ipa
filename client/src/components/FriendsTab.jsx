@@ -64,12 +64,6 @@ export default function FriendsTab({ showToast, onOpenUsernameModal }) {
           setChatMessages((prev) => {
             const prevArr = Array.isArray(prev) ? prev : [];
             const newArr = (res && Array.isArray(res.messages)) ? res.messages : [];
-            if (newArr.length > prevArr.length) {
-              const last = newArr[newArr.length - 1];
-              if (last && last.sender !== myUsername) {
-                playNotificationSound();
-              }
-            }
             return newArr;
           });
           setIsBotEnabled(Boolean(res?.isBotEnabled));
@@ -96,6 +90,23 @@ export default function FriendsTab({ showToast, onOpenUsernameModal }) {
     pollTimerRef.current = setInterval(poll, 3000);
     return () => clearInterval(pollTimerRef.current);
   }, [myUsername, activeFriend, lang]);
+
+  // Reactive listener when a new DM is received from the background watcher
+  useEffect(() => {
+    const handleNewDm = (e) => {
+      const msg = e.detail;
+      if (activeFriend && msg && (msg.sender === activeFriend || msg.isBot)) {
+        getChatMessages(activeFriend).then((res) => {
+          if (res && res.messages) {
+            setChatMessages(res.messages);
+            setIsBotEnabled(Boolean(res.isBotEnabled));
+          }
+        }).catch(() => {});
+      }
+    };
+    window.addEventListener('seif-new-dm-received', handleNewDm);
+    return () => window.removeEventListener('seif-new-dm-received', handleNewDm);
+  }, [activeFriend]);
 
   useEffect(() => {
     if (activeFriend) {

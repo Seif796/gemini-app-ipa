@@ -3,7 +3,7 @@ import { api, getToken, setToken, isGuestMode, setGuestMode } from './api';
 import { getActiveTheme, setActiveTheme } from './themeIcons';
 import { getScreenTimeData, saveScreenTimeData, formatSeconds } from './screenTime';
 import { notifications } from './notifications';
-import { getCurrentUsername, getFriendsData } from './friendsApi';
+import { getCurrentUsername, getFriendsData, checkNewIncomingDmMessages } from './friendsApi';
 import { getAppLanguage } from './i18n';
 import TabBar from './components/TabBar';
 import ChatTab from './components/ChatTab';
@@ -51,18 +51,39 @@ export default function App() {
     };
   }, []);
 
-  // Check pending friend requests periodically for badge
+  // Global background listener for DM messages and friend requests
   useEffect(() => {
     if (!myUsername) return;
-    const checkRequests = async () => {
+
+    const pollDmAndRequests = async () => {
       try {
+        // 1. Check for incoming DM messages
+        const newDmMessages = await checkNewIncomingDmMessages();
+        if (Array.isArray(newDmMessages) && newDmMessages.length > 0) {
+          for (const msg of newDmMessages) {
+            const senderTitle = msg.isBot ? '🤖 Seif AI Bot' : `@${msg.sender}`;
+            const messageBody = msg.text || '';
+
+            // Native notification with Title = sender name, Body = message text
+            await notifications.sendNow(senderTitle, messageBody);
+
+            // In-app visual toast banner
+            showToast(`💬 ${senderTitle}: ${messageBody}`, 'info');
+
+            // Dispatch global event for FriendsTab reactive sync
+            window.dispatchEvent(new CustomEvent('seif-new-dm-received', { detail: msg }));
+          }
+        }
+
+        // 2. Check pending friend requests for badge
         const data = await getFriendsData();
         const count = (data && Array.isArray(data.incomingRequests)) ? data.incomingRequests.length : 0;
         setPendingFriendsCount(count);
       } catch (_) {}
     };
-    checkRequests();
-    const interval = setInterval(checkRequests, 6000);
+
+    pollDmAndRequests();
+    const interval = setInterval(pollDmAndRequests, 3000);
     return () => clearInterval(interval);
   }, [myUsername]);
 

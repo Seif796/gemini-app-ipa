@@ -390,10 +390,72 @@ Keep answers punchy and fun for chat.`;
       });
 
       await saveMasterRegistry(freshRegistry);
-      playNotificationSound();
     }
   } catch (err) {
     console.warn('Bot auto-reply error:', err);
   }
 }
+
+// 9. Real-Time DM Message Watcher & Notification Trigger
+const seenMessageIds = new Set();
+let isWatcherInitialized = false;
+
+export function initDmWatcherWithExistingMessages(registry) {
+  if (isWatcherInitialized) return;
+  const myUsername = getCurrentUsername();
+  if (!myUsername) return;
+
+  const chatRooms = (registry && registry.chatRooms) ? registry.chatRooms : {};
+  for (const [roomKey, msgs] of Object.entries(chatRooms)) {
+    if (roomKey.split('___').includes(myUsername) && Array.isArray(msgs)) {
+      for (const m of msgs) {
+        if (m && m.id) {
+          seenMessageIds.add(m.id);
+        }
+      }
+    }
+  }
+  isWatcherInitialized = true;
+}
+
+export async function checkNewIncomingDmMessages() {
+  const myUsername = getCurrentUsername();
+  if (!myUsername) return [];
+
+  const registry = await getMasterRegistry(true);
+  if (!registry) return [];
+
+  if (!isWatcherInitialized) {
+    initDmWatcherWithExistingMessages(registry);
+    return [];
+  }
+
+  const incoming = [];
+  const chatRooms = (registry && registry.chatRooms) ? registry.chatRooms : {};
+
+  for (const [roomKey, msgs] of Object.entries(chatRooms)) {
+    const participants = roomKey.split('___');
+    if (!participants.includes(myUsername) || !Array.isArray(msgs)) continue;
+
+    for (const m of msgs) {
+      if (!m || !m.id) continue;
+      if (!seenMessageIds.has(m.id)) {
+        seenMessageIds.add(m.id);
+        if (m.sender && m.sender !== myUsername && !m.isSystem) {
+          incoming.push({
+            id: m.id,
+            roomKey,
+            sender: m.sender,
+            text: m.text || '',
+            timestamp: m.timestamp || Date.now(),
+            isBot: Boolean(m.isBot)
+          });
+        }
+      }
+    }
+  }
+
+  return incoming;
+}
+
 
