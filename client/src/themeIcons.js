@@ -64,13 +64,19 @@ export function setCustomIconImage(dataUrl) {
 }
 
 export function getActiveTheme() {
-  const savedId = localStorage.getItem('seif_app_icon_theme') || 'cosmic';
-  return ICON_THEMES.find(t => t.id === savedId) || ICON_THEMES[0];
+  try {
+    const savedId = localStorage.getItem('seif_app_icon_theme') || 'cosmic';
+    return ICON_THEMES.find(t => t.id === savedId) || ICON_THEMES[0];
+  } catch (_) {
+    return ICON_THEMES[0];
+  }
 }
 
 export function setActiveTheme(themeId) {
   const theme = ICON_THEMES.find(t => t.id === themeId) || ICON_THEMES[0];
-  localStorage.setItem('seif_app_icon_theme', theme.id);
+  try {
+    localStorage.setItem('seif_app_icon_theme', theme.id);
+  } catch (_) {}
 
   // Update CSS root variables
   document.documentElement.style.setProperty('--accent-gradient', theme.gradient);

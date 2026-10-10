@@ -3,7 +3,7 @@ import { Hourglass, Lock, Unlock, Clock, AlertTriangle, ShieldCheck } from 'luci
 import { formatSeconds, formatMinutes } from '../screenTime';
 
 export default function ScreenTimeOverlay({ screenTime, onExtend, onUnlock }) {
-  if (!screenTime.limitEnabled || !screenTime.isLocked) return null;
+  if (!screenTime || !screenTime.limitEnabled || !screenTime.isLocked) return null;
 
   return (
     <div style={{

@@ -274,13 +274,19 @@ const translations = {
 };
 
 export function getAppLanguage() {
-  const saved = localStorage.getItem(LANG_KEY);
-  return (saved === 'en' || saved === 'ar') ? saved : 'ar';
+  try {
+    const saved = localStorage.getItem(LANG_KEY);
+    return (saved === 'en' || saved === 'ar') ? saved : 'ar';
+  } catch (_) {
+    return 'ar';
+  }
 }
 
 export function setAppLanguage(lang) {
   const chosen = (lang === 'en') ? 'en' : 'ar';
-  localStorage.setItem(LANG_KEY, chosen);
+  try {
+    localStorage.setItem(LANG_KEY, chosen);
+  } catch (_) {}
 
   // Update HTML tag direction and lang
   if (typeof document !== 'undefined') {

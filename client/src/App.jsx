@@ -16,13 +16,13 @@ import ScreenTimeOverlay from './components/ScreenTimeOverlay';
 import UsernameModal from './components/UsernameModal';
 
 export default function App() {
-  const [myUsername, setMyUsername] = useState(getCurrentUsername());
-  const [isUsernameModalOpen, setIsUsernameModalOpen] = useState(!getCurrentUsername());
-  const [currentUser, setCurrentUser] = useState({ name: getCurrentUsername() || 'User', email: 'guest@seif-ai.local' });
+  const [myUsername, setMyUsername] = useState(() => getCurrentUsername());
+  const [isUsernameModalOpen, setIsUsernameModalOpen] = useState(() => !getCurrentUsername());
+  const [currentUser, setCurrentUser] = useState(() => ({ name: getCurrentUsername() || 'User', email: 'guest@seif-ai.local' }));
   const [currentTab, setCurrentTab] = useState('chat');
   const [pendingFriendsCount, setPendingFriendsCount] = useState(0);
   const [toast, setToast] = useState(null); // { message, type }
-  const [screenTime, setScreenTime] = useState(getScreenTimeData());
+  const [screenTime, setScreenTime] = useState(() => getScreenTimeData());
   const continuousMinutesRef = useRef(0);
 
   useEffect(() => {

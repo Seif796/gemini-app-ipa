@@ -14,15 +14,21 @@ let registryCache = null;
 let lastFetchTime = 0;
 
 export function getCurrentUsername() {
-  return localStorage.getItem(KEY_USERNAME) || '';
+  try {
+    return localStorage.getItem(KEY_USERNAME) || '';
+  } catch (_) {
+    return '';
+  }
 }
 
 export function setCurrentUsername(username) {
-  if (username) {
-    localStorage.setItem(KEY_USERNAME, username.toLowerCase().trim());
-  } else {
-    localStorage.removeItem(KEY_USERNAME);
-  }
+  try {
+    if (username) {
+      localStorage.setItem(KEY_USERNAME, username.toLowerCase().trim());
+    } else {
+      localStorage.removeItem(KEY_USERNAME);
+    }
+  } catch (_) {}
 }
 
 // Helper: Normalize registry structure safely
@@ -70,8 +76,9 @@ export async function getMasterRegistry(force = false) {
       const json = await res.json();
       if (json && json.data) {
         registryCache = sanitizeRegistry(json.data);
-        lastFetchTime = now;
-        localStorage.setItem(KEY_LOCAL_REGISTRY, JSON.stringify(registryCache));
+        try {
+          localStorage.setItem(KEY_LOCAL_REGISTRY, JSON.stringify(registryCache));
+        } catch (_) {}
         return registryCache;
       }
     }
@@ -86,7 +93,9 @@ export async function getMasterRegistry(force = false) {
 export async function saveMasterRegistry(data) {
   const cleanData = sanitizeRegistry(data);
   registryCache = cleanData;
-  localStorage.setItem(KEY_LOCAL_REGISTRY, JSON.stringify(cleanData));
+  try {
+    localStorage.setItem(KEY_LOCAL_REGISTRY, JSON.stringify(cleanData));
+  } catch (_) {}
   lastFetchTime = Date.now();
 
   // Background Cloud Sync - Never blocks UI

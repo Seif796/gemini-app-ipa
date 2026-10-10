@@ -39,32 +39,35 @@ export default function ChatTab({ showToast }) {
     notifications.init();
 
     // Initialize Web Speech Recognition if available on iPhone / Safari
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (SpeechRecognition) {
-      const recognition = new SpeechRecognition();
-      recognition.continuous = false;
-      recognition.interimResults = false;
-      recognition.lang = 'ar-SA'; // Primary Arabic, also supports English
+    try {
+      const WebSpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (WebSpeechRec) {
+        const recognition = new WebSpeechRec();
+        recognition.continuous = false;
+        recognition.interimResults = false;
+        recognition.lang = 'ar-SA'; // Primary Arabic, also supports English
 
-      recognition.onresult = (event) => {
-        const transcript = event.results[0][0].transcript;
-        if (transcript) {
-          setInput((prev) => (prev ? `${prev} ${transcript}` : transcript));
-          showToast('🎙️ صوتك اتسجل بنجاح!', 'info');
-        }
-        setIsListening(false);
-      };
+        recognition.onresult = (event) => {
+          const transcript = event.results[0][0].transcript;
+          if (transcript) {
+            setInput((prev) => (prev ? `${prev} ${transcript}` : transcript));
+            showToast('🎙️ صوتك اتسجل بنجاح!', 'info');
+          }
+          setIsListening(false);
+        };
 
-      recognition.onerror = () => {
-        setIsListening(false);
-        showToast('تعذر التقاط الصوت، حاول ثانية', 'warning');
-      };
+        recognition.onerror = () => {
+          setIsListening(false);
+        };
 
-      recognition.onend = () => {
-        setIsListening(false);
-      };
+        recognition.onend = () => {
+          setIsListening(false);
+        };
 
-      recognitionRef.current = recognition;
+        recognitionRef.current = recognition;
+      }
+    } catch (e) {
+      console.warn('Speech recognition Web API not permitted or available:', e);
     }
 
     const handleThemeChange = (e) => {

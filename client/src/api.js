@@ -5,51 +5,75 @@ const DEFAULT_CLIENT_KEY = KEY_PARTS.join('');
 const DEFAULT_SERVER_URL = 'http://192.168.1.17:5000';
 
 export function getServerUrl() {
-  return localStorage.getItem('aether_server_url') || DEFAULT_SERVER_URL;
+  try {
+    return localStorage.getItem('aether_server_url') || DEFAULT_SERVER_URL;
+  } catch (_) {
+    return DEFAULT_SERVER_URL;
+  }
 }
 
 export function setServerUrl(url) {
-  if (url) {
-    localStorage.setItem('aether_server_url', url.trim().replace(/\/$/, ''));
-  } else {
-    localStorage.removeItem('aether_server_url');
-  }
+  try {
+    if (url) {
+      localStorage.setItem('aether_server_url', url.trim().replace(/\/$/, ''));
+    } else {
+      localStorage.removeItem('aether_server_url');
+    }
+  } catch (_) {}
 }
 
 export function getToken() {
-  return localStorage.getItem('aether_auth_token');
+  try {
+    return localStorage.getItem('aether_auth_token');
+  } catch (_) {
+    return null;
+  }
 }
 
 export function setToken(token) {
-  if (token) {
-    localStorage.setItem('aether_auth_token', token);
-  } else {
-    localStorage.removeItem('aether_auth_token');
-  }
+  try {
+    if (token) {
+      localStorage.setItem('aether_auth_token', token);
+    } else {
+      localStorage.removeItem('aether_auth_token');
+    }
+  } catch (_) {}
 }
 
 export function getCustomApiKey() {
-  return localStorage.getItem('aether_custom_gemini_key') || DEFAULT_CLIENT_KEY;
+  try {
+    return localStorage.getItem('aether_custom_gemini_key') || DEFAULT_CLIENT_KEY;
+  } catch (_) {
+    return DEFAULT_CLIENT_KEY;
+  }
 }
 
 export function setCustomApiKey(key) {
-  if (key) {
-    localStorage.setItem('aether_custom_gemini_key', key.trim());
-  } else {
-    localStorage.removeItem('aether_custom_gemini_key');
-  }
+  try {
+    if (key) {
+      localStorage.setItem('aether_custom_gemini_key', key.trim());
+    } else {
+      localStorage.removeItem('aether_custom_gemini_key');
+    }
+  } catch (_) {}
 }
 
 export function isGuestMode() {
-  return localStorage.getItem('aether_guest_mode') === 'true';
+  try {
+    return localStorage.getItem('aether_guest_mode') === 'true';
+  } catch (_) {
+    return true;
+  }
 }
 
 export function setGuestMode(active) {
-  if (active) {
-    localStorage.setItem('aether_guest_mode', 'true');
-  } else {
-    localStorage.removeItem('aether_guest_mode');
-  }
+  try {
+    if (active) {
+      localStorage.setItem('aether_guest_mode', 'true');
+    } else {
+      localStorage.removeItem('aether_guest_mode');
+    }
+  } catch (_) {}
 }
 
 // Direct client-side Gemini API call with Vision & Multimodal Image support
