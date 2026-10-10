@@ -35,7 +35,7 @@ jobs:
       - name: Package Windows Desktop App (.EXE & Portable)
         run: |
           cd client
-          npx electron-builder --win --x64 --publish never -c.win.signAndEditExecutable=false
+          npx electron-builder --win --x64 --publish never
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
 
