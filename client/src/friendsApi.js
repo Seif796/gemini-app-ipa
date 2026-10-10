@@ -1,11 +1,12 @@
 import { directGeminiCall } from './api';
 import { notifications, playNotificationSound } from './notifications';
 import { getTranslation } from './i18n';
-import { findNearbyFriends, getLastKnownLocation } from './locationService';
+import { findNearbyFriends, findDepartedFriends, getLastKnownLocation } from './locationService';
 
 // Local storage keys
 const KEY_USERNAME = 'seif_username';
 const KEY_REGISTRY = 'seif_local_registry_v3';
+const KEY_ACCOUNTS = 'seif_saved_accounts_v1';
 
 // ntfy.sh Real-Time Cloud Sync Prefix (Free, unlimited, zero credentials required)
 const NTFY_PREFIX = 'https://ntfy.sh/seif_companion_';
@@ -21,11 +22,65 @@ export function getCurrentUsername() {
 export function setCurrentUsername(username) {
   try {
     if (username) {
-      localStorage.setItem(KEY_USERNAME, username.toLowerCase().trim());
+      const clean = username.toLowerCase().trim();
+      localStorage.setItem(KEY_USERNAME, clean);
+      saveAccount(clean);
     } else {
       localStorage.removeItem(KEY_USERNAME);
     }
   } catch (_) {}
+}
+
+export function getSavedAccounts() {
+  try {
+    const raw = localStorage.getItem(KEY_ACCOUNTS);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch (_) {}
+  const cur = getCurrentUsername();
+  return cur ? [{ username: cur, createdAt: new Date().toISOString() }] : [];
+}
+
+export function saveAccount(username) {
+  if (!username) return;
+  const clean = username.toLowerCase().trim();
+  const list = getSavedAccounts();
+  if (!list.some(a => a.username === clean)) {
+    list.push({ username: clean, createdAt: new Date().toISOString() });
+    try {
+      localStorage.setItem(KEY_ACCOUNTS, JSON.stringify(list));
+    } catch (_) {}
+  }
+}
+
+export function switchAccount(username) {
+  if (!username) return;
+  const clean = username.toLowerCase().trim();
+  try {
+    localStorage.setItem(KEY_USERNAME, clean);
+    saveAccount(clean);
+  } catch (_) {}
+  window.dispatchEvent(new CustomEvent('seif-account-switched', { detail: { username: clean } }));
+}
+
+export function removeSavedAccount(username) {
+  if (!username) return;
+  const clean = username.toLowerCase().trim();
+  let list = getSavedAccounts().filter(a => a.username !== clean);
+  try {
+    localStorage.setItem(KEY_ACCOUNTS, JSON.stringify(list));
+  } catch (_) {}
+  if (getCurrentUsername() === clean) {
+    const next = list[0]?.username || '';
+    if (next) {
+      switchAccount(next);
+    } else {
+      localStorage.removeItem(KEY_USERNAME);
+      window.dispatchEvent(new CustomEvent('seif-account-switched', { detail: { username: '' } }));
+    }
+  }
 }
 
 // ---------------- LOCAL REGISTRY HELPERS ----------------
@@ -298,6 +353,37 @@ export async function rejectFriendRequest(requestId) {
   return true;
 }
 
+// ---------------- 4.1 REMOVE FRIEND ----------------
+
+export async function removeFriend(friendUsername) {
+  const myUsername = getCurrentUsername();
+  if (!myUsername || !friendUsername) return false;
+
+  const cleanFriend = friendUsername.toLowerCase().trim();
+  const registry = getLocalRegistry();
+
+  registry.friendships = registry.friendships || {};
+
+  if (Array.isArray(registry.friendships[myUsername])) {
+    registry.friendships[myUsername] = registry.friendships[myUsername].filter(f => f !== cleanFriend);
+  }
+  if (Array.isArray(registry.friendships[cleanFriend])) {
+    registry.friendships[cleanFriend] = registry.friendships[cleanFriend].filter(f => f !== myUsername);
+  }
+
+  saveLocalRegistry(registry);
+
+  // Notify friend via cloud channel
+  publishCloudEvent(`inbox_${cleanFriend}`, {
+    type: 'friend_removed',
+    by: myUsername,
+    time: Date.now()
+  });
+
+  window.dispatchEvent(new CustomEvent('seif-friend-removed', { detail: { friend: cleanFriend } }));
+  return true;
+}
+
 // ---------------- 5. GET USER FRIENDS & REQUESTS ----------------
 
 export async function getFriendsData() {
@@ -319,6 +405,38 @@ export async function getFriendsData() {
   );
 
   return { friends, incomingRequests, outgoingRequests };
+}
+
+// ---------------- 5.1 GET ALL CHATS OVERVIEW ----------------
+
+export function getAllChatsOverview() {
+  const myUsername = getCurrentUsername();
+  if (!myUsername) return [];
+
+  const registry = getLocalRegistry();
+  const friendships = registry.friendships || {};
+  const myFriends = Array.isArray(friendships[myUsername]) ? friendships[myUsername] : [];
+  const chatRooms = registry.chatRooms || {};
+
+  const chats = myFriends.map((friend) => {
+    const roomKey = getChatRoomKey(myUsername, friend);
+    const messages = Array.isArray(chatRooms[roomKey]) ? chatRooms[roomKey] : [];
+    const lastMsg = messages.length > 0 ? messages[messages.length - 1] : null;
+
+    return {
+      friend,
+      lastMessage: lastMsg ? (lastMsg.text || '') : 'ابدأ المحادثة الآن 👋',
+      lastSender: lastMsg ? lastMsg.sender : null,
+      timestamp: lastMsg ? (lastMsg.timestamp || 0) : 0,
+      isBot: lastMsg ? Boolean(lastMsg.isBot) : false,
+      isMe: lastMsg ? (lastMsg.sender === myUsername) : false,
+      messageCount: messages.length
+    };
+  });
+
+  // Sort by newest message first
+  chats.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+  return chats;
 }
 
 // ---------------- 6. CHAT ROOMS & MESSAGES ----------------
@@ -576,7 +694,38 @@ export async function checkNewIncomingDmMessages() {
       }
     }
 
-    // 4. Friend Location Update
+    // 5. Incoming Call Invite
+    else if (ev.type === 'call_invite' && ev.from && ev.from !== myUsername) {
+      window.dispatchEvent(new CustomEvent('seif-call-invite', { detail: ev }));
+      try {
+        const typeText = ev.callType === 'video' ? 'مكالمة فيديو' : 'مكالمة صوتية';
+        notifications.sendNow(`📞 ${typeText} واردة من @${ev.from}`, `يريد بدء ${typeText} معك الآن! 🔔`);
+        playNotificationSound();
+      } catch (_) {}
+    }
+
+    // 6. Call Response (Accepted / Declined)
+    else if (ev.type === 'call_response' && ev.from && ev.from !== myUsername) {
+      window.dispatchEvent(new CustomEvent('seif-call-response', { detail: ev }));
+    }
+
+    // 7. Call Ended
+    else if (ev.type === 'call_end' && ev.from && ev.from !== myUsername) {
+      window.dispatchEvent(new CustomEvent('seif-call-end', { detail: ev }));
+    }
+
+    // 8. Friend Removed
+    else if (ev.type === 'friend_removed' && ev.by) {
+      const removedUser = ev.by;
+      registry.friendships = registry.friendships || {};
+      if (Array.isArray(registry.friendships[myUsername])) {
+        registry.friendships[myUsername] = registry.friendships[myUsername].filter(f => f !== removedUser);
+        modified = true;
+      }
+      window.dispatchEvent(new CustomEvent('seif-friend-removed', { detail: { friend: removedUser } }));
+    }
+
+    // 9. Friend Location Update
     else if (ev.type === 'friend_location' && ev.sender && ev.lat && ev.lng) {
       registry.users = registry.users || {};
       registry.users[ev.sender] = registry.users[ev.sender] || { username: ev.sender };
@@ -596,7 +745,50 @@ export async function checkNewIncomingDmMessages() {
   return newDmMessages;
 }
 
-// ---------------- 8. LOCATION & PROXIMITY ----------------
+// ---------------- 8. VOICE & VIDEO CALL SIGNALING ----------------
+
+export async function sendCallInvite(friendUsername, callType = 'voice') {
+  const myUsername = getCurrentUsername();
+  if (!myUsername || !friendUsername) return null;
+
+  const data = {
+    type: 'call_invite',
+    callType,
+    from: myUsername,
+    to: friendUsername,
+    time: Date.now()
+  };
+
+  publishCloudEvent(`inbox_${friendUsername}`, data);
+  return data;
+}
+
+export async function sendCallResponse(friendUsername, accepted = true) {
+  const myUsername = getCurrentUsername();
+  if (!myUsername || !friendUsername) return;
+
+  publishCloudEvent(`inbox_${friendUsername}`, {
+    type: 'call_response',
+    accepted,
+    from: myUsername,
+    to: friendUsername,
+    time: Date.now()
+  });
+}
+
+export async function sendCallEnd(friendUsername) {
+  const myUsername = getCurrentUsername();
+  if (!myUsername || !friendUsername) return;
+
+  publishCloudEvent(`inbox_${friendUsername}`, {
+    type: 'call_end',
+    from: myUsername,
+    to: friendUsername,
+    time: Date.now()
+  });
+}
+
+// ---------------- 9. LOCATION & PROXIMITY ----------------
 
 export async function updateUserLocation(lat, lng) {
   const myUsername = getCurrentUsername();
@@ -635,4 +827,12 @@ export async function checkNearbyFriendsAlerts() {
 
   const registry = getLocalRegistry();
   return findNearbyFriends(myUsername, registry);
+}
+
+export async function checkDepartedFriendsAlerts() {
+  const myUsername = getCurrentUsername();
+  if (!myUsername) return [];
+
+  const registry = getLocalRegistry();
+  return findDepartedFriends(myUsername, registry);
 }

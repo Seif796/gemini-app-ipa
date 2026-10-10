@@ -140,3 +140,68 @@ export function findNearbyFriends(myUsername, registry) {
   return nearby;
 }
 
+// Departed threshold in meters (when distance increases after being nearby)
+export const DEPARTED_THRESHOLD_METERS = 1000;
+const DEPARTED_COOLDOWN_MS = 20 * 60 * 1000;
+
+export function findDepartedFriends(myUsername, registry) {
+  if (!myUsername || !registry) return [];
+
+  const myLoc = getLastKnownLocation();
+  if (!myLoc || !myLoc.lat || !myLoc.lng) return [];
+
+  const friendships = registry.friendships || {};
+  const myFriends = friendships[myUsername] || [];
+  if (!Array.isArray(myFriends) || myFriends.length === 0) return [];
+
+  const users = registry.users || {};
+  const departed = [];
+  const now = Date.now();
+
+  for (const friendName of myFriends) {
+    const friendObj = users[friendName];
+    if (!friendObj || !friendObj.location) continue;
+
+    const fLoc = friendObj.location;
+    if (!fLoc.lat || !fLoc.lng) continue;
+
+    if (fLoc.updatedAt && now - fLoc.updatedAt > 4 * 60 * 60 * 1000) {
+      continue;
+    }
+
+    const dist = calculateDistanceMeters(myLoc.lat, myLoc.lng, fLoc.lat, fLoc.lng);
+    const stateKey = `seif_friend_was_nearby_${friendName}`;
+    let wasNearby = false;
+    try {
+      wasNearby = localStorage.getItem(stateKey) === 'true';
+    } catch (_) {}
+
+    if (dist <= PROXIMITY_THRESHOLD_METERS) {
+      try {
+        localStorage.setItem(stateKey, 'true');
+      } catch (_) {}
+    } else if (dist >= DEPARTED_THRESHOLD_METERS && wasNearby) {
+      // Friend was close and is now far apart
+      const cooldownKey = `seif_departed_alert_${friendName}`;
+      let lastAlertTime = 0;
+      try {
+        lastAlertTime = parseInt(localStorage.getItem(cooldownKey) || '0', 10);
+      } catch (_) {}
+
+      if (now - lastAlertTime > DEPARTED_COOLDOWN_MS) {
+        try {
+          localStorage.setItem(cooldownKey, String(now));
+          localStorage.setItem(stateKey, 'false'); // reset state
+        } catch (_) {}
+
+        departed.push({
+          friend: friendName,
+          distance: dist
+        });
+      }
+    }
+  }
+
+  return departed;
+}
+

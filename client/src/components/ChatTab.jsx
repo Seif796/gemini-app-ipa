@@ -1,5 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Send, Sparkles, Trash2, Copy, Check, Bot, Bell, Clock, Cpu, ExternalLink, Power, Mic, MicOff, Camera as CameraIcon, Image as ImageIcon, Volume2, X } from 'lucide-react';
+import { 
+  Send, Sparkles, Trash2, Copy, Check, Bot, Bell, Clock, Cpu, 
+  ExternalLink, Power, Mic, MicOff, Camera as CameraIcon, Image as ImageIcon, 
+  Volume2, X, Phone, Video, UserPlus, Search 
+} from 'lucide-react';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { SpeechRecognition } from '@capacitor-community/speech-recognition';
 import { Capacitor } from '@capacitor/core';
@@ -7,11 +11,13 @@ import { api } from '../api';
 import { notifications } from '../notifications';
 import { getActiveTheme } from '../themeIcons';
 import { openApp, closeCurrentApp, findAppByName } from '../appLauncher';
+import { getAllChatsOverview } from '../friendsApi';
 import AppIconBadge from './AppIconBadge';
 import LanguageToggle from './LanguageToggle';
+import FriendChatRoom from './FriendChatRoom';
 import { getAppLanguage, getTranslation } from '../i18n';
 
-export default function ChatTab({ showToast }) {
+export default function ChatTab({ showToast, onStartCall, onSwitchTab }) {
   const [lang, setLang] = useState(getAppLanguage());
   const t = getTranslation(lang);
 
@@ -42,6 +48,28 @@ export default function ChatTab({ showToast }) {
   const fileInputRef = useRef(null);
   const recognitionRef = useRef(null);
   const chatEndRef = useRef(null);
+
+  // Chat view mode: 'ai' (Gemini) vs 'friends' (كل المحادثات)
+  const [chatMode, setChatMode] = useState('ai');
+  const [activeFriendChat, setActiveFriendChat] = useState(null);
+  const [chatsList, setChatsList] = useState(() => getAllChatsOverview());
+  const [searchQuery, setSearchQuery] = useState('');
+
+  useEffect(() => {
+    const refreshChats = () => {
+      setChatsList(getAllChatsOverview());
+    };
+    window.addEventListener('seif-new-dm-received', refreshChats);
+    window.addEventListener('seif-friend-accepted', refreshChats);
+    window.addEventListener('seif-friend-removed', refreshChats);
+    window.addEventListener('seif-account-switched', refreshChats);
+    return () => {
+      window.removeEventListener('seif-new-dm-received', refreshChats);
+      window.removeEventListener('seif-friend-accepted', refreshChats);
+      window.removeEventListener('seif-friend-removed', refreshChats);
+      window.removeEventListener('seif-account-switched', refreshChats);
+    };
+  }, []);
 
   useEffect(() => {
     const handleLang = (e) => setLang(e.detail || getAppLanguage());
@@ -414,6 +442,24 @@ export default function ChatTab({ showToast }) {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
+  if (activeFriendChat) {
+    return (
+      <FriendChatRoom
+        friend={activeFriendChat}
+        onBack={() => {
+          setActiveFriendChat(null);
+          setChatsList(getAllChatsOverview());
+        }}
+        onStartCall={onStartCall}
+        showToast={showToast}
+      />
+    );
+  }
+
+  const filteredChats = (chatsList || []).filter(c => 
+    !searchQuery.trim() || c.friend.toLowerCase().includes(searchQuery.toLowerCase().trim())
+  );
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
       {/* Header */}
@@ -455,22 +501,216 @@ export default function ChatTab({ showToast }) {
             <Bell size={16} />
           </button>
 
-          <button
-            onClick={handleClearHistory}
-            title={t.clear}
-            style={{
-              background: 'rgba(255, 255, 255, 0.06)',
-              border: 'none',
-              borderRadius: '10px',
-              padding: '7px',
-              cursor: 'pointer',
-              color: '#94a3b8'
-            }}
-          >
-            <Trash2 size={16} />
-          </button>
+          {chatMode === 'ai' && (
+            <button
+              onClick={handleClearHistory}
+              title={t.clear}
+              style={{
+                background: 'rgba(255, 255, 255, 0.06)',
+                border: 'none',
+                borderRadius: '10px',
+                padding: '7px',
+                cursor: 'pointer',
+                color: '#94a3b8'
+              }}
+            >
+              <Trash2 size={16} />
+            </button>
+          )}
         </div>
       </header>
+
+      {/* Mode Switcher: Gemini AI vs All Chats */}
+      <div style={{
+        display: 'flex',
+        padding: '4px',
+        margin: '0 16px 8px',
+        background: 'rgba(255, 255, 255, 0.05)',
+        borderRadius: '16px',
+        border: '1px solid rgba(255, 255, 255, 0.08)'
+      }}>
+        <button
+          onClick={() => setChatMode('ai')}
+          style={{
+            flex: 1,
+            padding: '8px 12px',
+            borderRadius: '12px',
+            background: chatMode === 'ai' ? 'linear-gradient(135deg, #0284c7, #38bdf8)' : 'transparent',
+            color: chatMode === 'ai' ? '#fff' : '#94a3b8',
+            border: 'none',
+            fontWeight: '700',
+            fontSize: '13px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '6px',
+            cursor: 'pointer',
+            transition: 'all 0.2s'
+          }}
+        >
+          <Sparkles size={14} />
+          <span>Gemini AI</span>
+        </button>
+
+        <button
+          onClick={() => {
+            setChatMode('friends');
+            setChatsList(getAllChatsOverview());
+          }}
+          style={{
+            flex: 1,
+            padding: '8px 12px',
+            borderRadius: '12px',
+            background: chatMode === 'friends' ? 'linear-gradient(135deg, #0284c7, #38bdf8)' : 'transparent',
+            color: chatMode === 'friends' ? '#fff' : '#94a3b8',
+            border: 'none',
+            fontWeight: '700',
+            fontSize: '13px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '6px',
+            cursor: 'pointer',
+            transition: 'all 0.2s'
+          }}
+        >
+          <Bot size={14} />
+          <span>{lang === 'ar' ? 'المحادثات (Chats)' : 'All Chats'}</span>
+          {chatsList.length > 0 && (
+            <span style={{
+              background: chatMode === 'friends' ? 'rgba(0,0,0,0.3)' : 'rgba(56, 189, 248, 0.2)',
+              padding: '1px 7px',
+              borderRadius: '10px',
+              fontSize: '10px'
+            }}>
+              {chatsList.length}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {chatMode === 'friends' ? (
+        /* ALL CHATS LIST VIEW */
+        <div style={{ flex: 1, overflowY: 'auto', padding: '8px 16px calc(var(--safe-bottom) + 80px)' }}>
+          {/* Search Box */}
+          <div style={{ position: 'relative', marginBottom: '14px' }}>
+            <Search size={16} color="#94a3b8" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+            <input
+              type="text"
+              placeholder={lang === 'ar' ? 'بحث في المحادثات...' : 'Search chats...'}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '10px 14px 10px 36px',
+                background: 'rgba(255, 255, 255, 0.05)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                borderRadius: '14px',
+                color: '#fff',
+                fontSize: '13px',
+                outline: 'none',
+                boxSizing: 'border-box'
+              }}
+            />
+          </div>
+
+          {filteredChats.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '36px 12px', color: '#94a3b8' }}>
+              <p style={{ fontSize: '14px', marginBottom: '14px' }}>
+                {lang === 'ar' ? 'لا توجد محادثات بعد!' : 'No chats yet!'}
+              </p>
+              <button
+                onClick={() => onSwitchTab && onSwitchTab('friends')}
+                className="ios-button-primary"
+                style={{ padding: '10px 20px', fontSize: '13px', margin: '0 auto', gap: '6px' }}
+              >
+                <UserPlus size={16} />
+                <span>{lang === 'ar' ? 'إضافة أصدقاء وبدء دردشة' : 'Add Friends & Start Chat'}</span>
+              </button>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {filteredChats.map((c) => (
+                <div
+                  key={c.friend}
+                  onClick={() => setActiveFriendChat(c.friend)}
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.04)',
+                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                    borderRadius: '18px',
+                    padding: '12px 14px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{
+                      width: '44px',
+                      height: '44px',
+                      borderRadius: '50%',
+                      background: 'linear-gradient(135deg, #0284c7 0%, #38bdf8 100%)',
+                      color: '#fff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontWeight: '800',
+                      fontSize: '15px',
+                      boxShadow: '0 0 12px rgba(56, 189, 248, 0.25)'
+                    }}>
+                      {(c.friend.substring(0, 2) || '?').toUpperCase()}
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '15px', fontWeight: '800', color: '#fff', marginBottom: '2px' }}>
+                        @{c.friend}
+                      </div>
+                      <div style={{
+                        fontSize: '12px',
+                        color: '#94a3b8',
+                        maxWidth: '180px',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis'
+                      }}>
+                        {c.isMe ? 'أنت: ' : ''}{c.lastMessage}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (onStartCall) onStartCall(c.friend, 'voice');
+                      }}
+                      className="ios-button-secondary"
+                      style={{ width: '34px', height: '34px', borderRadius: '50%', padding: 0, color: '#34d399' }}
+                      title="مكالمة صوتية"
+                    >
+                      <Phone size={15} />
+                    </button>
+
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (onStartCall) onStartCall(c.friend, 'video');
+                      }}
+                      className="ios-button-secondary"
+                      style={{ width: '34px', height: '34px', borderRadius: '50%', padding: 0, color: '#38bdf8' }}
+                      title="مكالمة فيديو"
+                    >
+                      <Video size={15} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : (
+        /* GEMINI AI VIEW */
+        <>
 
       {/* Messages Scroll Area */}
       <div style={{
@@ -802,6 +1042,8 @@ export default function ChatTab({ showToast }) {
           </button>
         </form>
       </div>
+      </>
+      )}
     </div>
   );
 }

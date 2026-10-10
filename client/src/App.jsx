@@ -3,7 +3,11 @@ import { api, getToken, setToken, isGuestMode, setGuestMode } from './api';
 import { getActiveTheme, setActiveTheme } from './themeIcons';
 import { getScreenTimeData, saveScreenTimeData, formatSeconds } from './screenTime';
 import { notifications } from './notifications';
-import { getCurrentUsername, getFriendsData, checkNewIncomingDmMessages, updateUserLocation, checkAcceptedFriendships, checkNearbyFriendsAlerts } from './friendsApi';
+import { 
+  getCurrentUsername, getFriendsData, checkNewIncomingDmMessages, 
+  updateUserLocation, checkAcceptedFriendships, checkNearbyFriendsAlerts, 
+  checkDepartedFriendsAlerts, sendCallInvite 
+} from './friendsApi';
 import { initLocationTracking } from './locationService';
 import { getAppLanguage } from './i18n';
 import TabBar from './components/TabBar';
@@ -15,6 +19,8 @@ import TasksTab from './components/TasksTab';
 import SettingsTab from './components/SettingsTab';
 import ScreenTimeOverlay from './components/ScreenTimeOverlay';
 import UsernameModal from './components/UsernameModal';
+import CallModal from './components/CallModal';
+import AccountSwitcherModal from './components/AccountSwitcherModal';
 
 export default function App() {
   const [myUsername, setMyUsername] = useState(() => getCurrentUsername());
@@ -24,6 +30,8 @@ export default function App() {
   const [pendingFriendsCount, setPendingFriendsCount] = useState(0);
   const [toast, setToast] = useState(null); // { message, type }
   const [screenTime, setScreenTime] = useState(() => getScreenTimeData());
+  const [callState, setCallState] = useState(null); // { isOpen, isIncoming, callType, friend, status }
+  const [isAccountSwitcherOpen, setIsAccountSwitcherOpen] = useState(false);
   const continuousMinutesRef = useRef(0);
 
   useEffect(() => {
@@ -106,7 +114,18 @@ export default function App() {
           }
         }
 
-        // 4. Check pending friend requests for badge
+        // 4. Check for departed friends (distance widened after being nearby)
+        const departedFriends = await checkDepartedFriendsAlerts();
+        if (Array.isArray(departedFriends) && departedFriends.length > 0) {
+          for (const item of departedFriends) {
+            const title = `🚶‍♂️ بعدتوا عن بعض!`;
+            const body = `أنت وصديقك @${item.friend} بعدتوا عن بعض دلوقتي! كلمه شوية وسلّي وقتك 💬`;
+            await notifications.sendNow(title, body);
+            showToast(body, 'info');
+          }
+        }
+
+        // 5. Check pending friend requests for badge
         const data = await getFriendsData();
         const count = (data && Array.isArray(data.incomingRequests)) ? data.incomingRequests.length : 0;
         setPendingFriendsCount(count);
@@ -114,9 +133,70 @@ export default function App() {
     };
 
     pollDmAndRequests();
-    const interval = setInterval(pollDmAndRequests, 3000);
+    const interval = setInterval(pollDmAndRequests, 2500);
     return () => clearInterval(interval);
   }, [myUsername]);
+
+  // Real-time voice & video call signaling listeners + account switch
+  useEffect(() => {
+    const handleCallInvite = (e) => {
+      const ev = e.detail;
+      if (ev && ev.from) {
+        setCallState({
+          isOpen: true,
+          isIncoming: true,
+          callType: ev.callType || 'voice',
+          friend: ev.from,
+          status: 'ringing'
+        });
+      }
+    };
+
+    const handleCallResponse = (e) => {
+      const ev = e.detail;
+      if (ev) {
+        if (ev.accepted) {
+          setCallState(prev => prev ? ({ ...prev, status: 'connected' }) : null);
+        } else {
+          showToast(`❌ تم رفض المكالمة من @${ev.from}`, 'info');
+          setCallState(null);
+        }
+      }
+    };
+
+    const handleCallEnd = () => {
+      setCallState(null);
+    };
+
+    const handleAccountSwitched = (e) => {
+      const newUser = e.detail?.username || getCurrentUsername();
+      setMyUsername(newUser);
+      setCurrentUser({ name: newUser || 'User', email: `${newUser}@seif-ai.local` });
+    };
+
+    window.addEventListener('seif-call-invite', handleCallInvite);
+    window.addEventListener('seif-call-response', handleCallResponse);
+    window.addEventListener('seif-call-end', handleCallEnd);
+    window.addEventListener('seif-account-switched', handleAccountSwitched);
+
+    return () => {
+      window.removeEventListener('seif-call-invite', handleCallInvite);
+      window.removeEventListener('seif-call-response', handleCallResponse);
+      window.removeEventListener('seif-call-end', handleCallEnd);
+      window.removeEventListener('seif-account-switched', handleAccountSwitched);
+    };
+  }, []);
+
+  const handleStartCall = async (friend, callType = 'voice') => {
+    setCallState({
+      isOpen: true,
+      isIncoming: false,
+      callType,
+      friend,
+      status: 'calling'
+    });
+    await sendCallInvite(friend, callType);
+  };
 
   // Screen time interval tracker - ticks every second when app is open
   useEffect(() => {
@@ -237,9 +317,20 @@ export default function App() {
 
       {/* Main Screen Content */}
       <main style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
-        {currentTab === 'chat' && <ChatTab showToast={showToast} />}
+        {currentTab === 'chat' && (
+          <ChatTab 
+            showToast={showToast} 
+            onStartCall={handleStartCall} 
+            onSwitchTab={(t) => setCurrentTab(t)} 
+          />
+        )}
         {currentTab === 'friends' && (
-          <FriendsTab showToast={showToast} onOpenUsernameModal={() => setIsUsernameModalOpen(true)} />
+          <FriendsTab 
+            showToast={showToast} 
+            onOpenUsernameModal={() => setIsUsernameModalOpen(true)}
+            onOpenAccountSwitcher={() => setIsAccountSwitcherOpen(true)}
+            onStartCall={handleStartCall}
+          />
         )}
         {currentTab === 'tools' && <AiToolsTab showToast={showToast} />}
         {currentTab === 'notes' && <NotesTab showToast={showToast} onTaskAdded={() => {}} />}
@@ -254,6 +345,21 @@ export default function App() {
         currentTab={currentTab}
         onSelectTab={setCurrentTab}
         pendingFriendsCount={pendingFriendsCount}
+      />
+
+      {/* Voice & Video Call Modal */}
+      <CallModal
+        callState={callState}
+        onClose={() => setCallState(null)}
+        showToast={showToast}
+      />
+
+      {/* Multi-Account Switcher Modal */}
+      <AccountSwitcherModal
+        isOpen={isAccountSwitcherOpen}
+        onClose={() => setIsAccountSwitcherOpen(false)}
+        onAddNew={() => setIsUsernameModalOpen(true)}
+        showToast={showToast}
       />
 
       {/* Screen Time Enforcement Overlay */}
