@@ -8,6 +8,8 @@
     "dev:server": "npm --prefix server dev",
     "dev:client": "npm --prefix client dev",
     "build:client": "npm --prefix client run build",
+    "start:desktop": "npm --prefix client run desktop",
+    "build:desktop": "npm --prefix client run build:desktop",
     "dev": "node start-dev.js"
   },
   "keywords": [

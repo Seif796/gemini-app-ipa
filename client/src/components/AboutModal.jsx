@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   X, Info, Sparkles, Shield, Cpu, Code2, Heart, Share2, 
   Copy, Check, Phone, MessageSquare, MapPin, Users, Hourglass, 
-  Volume2, Globe, CheckCircle2 
+  Volume2, Globe, CheckCircle2, Laptop 
 } from 'lucide-react';
 import { getAppLanguage, getTranslation } from '../i18n';
 import AppIconBadge from './AppIconBadge';
@@ -48,6 +48,7 @@ Status: Connected & Ready 24/7`;
 
   const featureList = [
     { icon: Sparkles, color: '#38bdf8', text: t.featureGeminiAi },
+    { icon: Laptop, color: '#38bdf8', text: lang === 'ar' ? 'نسخة مخصصة للابتوب والكمبيوتر (Windows & Mac)' : 'Dedicated Laptop & Desktop app (Windows & Mac)' },
     { icon: MessageSquare, color: '#60a5fa', text: t.featureFriendsDm },
     { icon: Phone, color: '#34d399', text: t.featureCalls },
     { icon: MapPin, color: '#f43f5e', text: t.featureRadar },
@@ -356,3 +357,4 @@ Status: Connected & Ready 24/7`;
     </div>
   );
 }
+

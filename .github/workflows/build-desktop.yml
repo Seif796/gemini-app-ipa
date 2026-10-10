@@ -1,0 +1,50 @@
+name: Build Laptop Desktop App (.EXE)
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    name: Build & Package Windows Laptop App
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Client Dependencies
+        run: |
+          cd client
+          npm install
+
+      - name: Build Web Application
+        run: |
+          cd client
+          npm run build
+
+      - name: Package Windows Desktop App (.EXE)
+        run: |
+          cd client
+          npx electron-builder --win --x64
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: List Generated Executables
+        run: |
+          Get-ChildItem -Path client/release -Recurse
+
+      - name: Upload Windows Laptop App Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Seif-AI-Laptop-Windows-App
+          path: |
+            client/release/*.exe
+            client/release/*.blockmap
+          retention-days: 14
