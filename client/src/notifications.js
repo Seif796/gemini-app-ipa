@@ -76,9 +76,17 @@ export function playSynthNotificationChime() {
 }
 
 let cachedAudio = null;
+let lastSoundPlayTime = 0;
 
-// Master notification sound player: plays custom audio file with instant synth fallback + haptic vibration
+// Master notification sound player: plays custom audio file with debouncing + instant synth fallback + haptic vibration
 export function playNotificationSound() {
+  const now = Date.now();
+  // Prevent double sound if triggered multiple times within 1.5 seconds
+  if (now - lastSoundPlayTime < 1500) {
+    return;
+  }
+  lastSoundPlayTime = now;
+
   try {
     if (!cachedAudio) {
       cachedAudio = new Audio('/notification.wav');
@@ -113,16 +121,6 @@ class NotificationService {
       if (status.display === 'granted') {
         this.hasPermission = true;
       }
-
-      // Automatically play notification chime whenever a local notification arrives
-      try {
-        LocalNotifications.addListener('localNotificationReceived', () => {
-          playNotificationSound();
-        });
-        LocalNotifications.addListener('localNotificationActionPerformed', () => {
-          playNotificationSound();
-        });
-      } catch (_) {}
     } catch (e) {
       if ('Notification' in window && Notification.permission === 'granted') {
         this.hasPermission = true;
@@ -154,8 +152,6 @@ class NotificationService {
 
   async sendNow(title, body) {
     await this.ensurePermission();
-    // Play the signature notification sound immediately
-    playNotificationSound();
 
     try {
       await LocalNotifications.schedule({
@@ -164,13 +160,15 @@ class NotificationService {
             title: title || 'Seif Ai Test',
             body: body || 'You have a new message!',
             id: Math.floor(Math.random() * 100000) + 1,
-            schedule: { at: new Date(Date.now() + 200) },
+            schedule: { at: new Date(Date.now() + 100) },
             sound: 'notification.wav'
           }
         ]
       });
       return;
     } catch (e) {
+      // Fallback for web browser where LocalNotifications is not available
+      playNotificationSound();
       if ('Notification' in window && Notification.permission === 'granted') {
         new Notification(title || 'Seif Ai Test', {
           body,
@@ -205,20 +203,17 @@ class NotificationService {
       console.log(`Scheduled reminder for ${fireDate.toLocaleTimeString()}`);
     } catch (e) {
       console.warn('Native LocalNotifications fallback to setTimeout:', e);
+      // Only set JS timer fallback if native LocalNotifications failed
+      setTimeout(() => {
+        playNotificationSound();
+        if ('Notification' in window && Notification.permission === 'granted') {
+          new Notification('⏰ تذكير مهم من Seif Ai Test', {
+            body: title,
+            icon: '/app-icon.png'
+          });
+        }
+      }, safeDelay * 1000);
     }
-
-    // Always keep an active JS setTimeout backup for guaranteed reliability and chime
-    setTimeout(() => {
-      // Play signature notification sound when reminder fires
-      playNotificationSound();
-
-      if ('Notification' in window && Notification.permission === 'granted') {
-        new Notification('⏰ تذكير مهم من Seif Ai Test', {
-          body: title,
-          icon: '/app-icon.png'
-        });
-      }
-    }, safeDelay * 1000);
 
     return { id, fireDate };
   }
