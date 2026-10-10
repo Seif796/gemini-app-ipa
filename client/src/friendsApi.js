@@ -82,8 +82,8 @@ async function pollCloudInbox(username) {
   if (!username) return [];
   try {
     const controller = new AbortController();
-    const tId = setTimeout(() => controller.abort(), 2500);
-    const res = await fetch(`${NTFY_PREFIX}inbox_${username}/json?poll=1&since=24h`, {
+    const tId = setTimeout(() => controller.abort(), 3500);
+    const res = await fetch(`${NTFY_PREFIX}inbox_${username}/json?poll=1&since=all`, {
       signal: controller.signal
     });
     clearTimeout(tId);
@@ -153,6 +153,10 @@ export async function sendFriendRequest(targetUsername) {
   const cleanTarget = (targetUsername || '').toLowerCase().replace(/^@+/, '').trim();
   if (!cleanTarget) throw new Error(t.errEmptyUsername || 'يرجى إدخال اسم الصديق');
 
+  if (cleanTarget.length < 2) {
+    throw new Error(t.errUsernameTooShort || 'اسم المستخدم يجب أن يكون حرفين على الأقل');
+  }
+
   if (cleanTarget === myUsername) {
     throw new Error(t.errCannotAddSelf || 'لا يمكنك إرسال طلب صداقة لنفسك!');
   }
@@ -188,6 +192,13 @@ export async function sendFriendRequest(targetUsername) {
 
   registry.friendRequests = registry.friendRequests || [];
   registry.friendRequests.push(newRequest);
+
+  // Auto-register target in local user registry
+  registry.users = registry.users || {};
+  if (!registry.users[cleanTarget]) {
+    registry.users[cleanTarget] = { username: cleanTarget };
+  }
+
   saveLocalRegistry(registry);
 
   // Send real-time notification to the target user via their cloud inbox
@@ -196,6 +207,12 @@ export async function sendFriendRequest(targetUsername) {
     request: newRequest,
     from: myUsername,
     time: Date.now()
+  });
+
+  // Announce friendship intent to global registry
+  publishCloudEvent('users_v3', {
+    type: 'user_active',
+    username: cleanTarget
   });
 
   return newRequest;
@@ -213,6 +230,8 @@ export async function acceptFriendRequest(requestId) {
   req.status = 'accepted';
   req.acceptedAt = Date.now();
 
+  const friendUsername = req.from === myUsername ? req.to : req.from;
+
   // Add friendship both ways
   registry.friendships = registry.friendships || {};
   registry.friendships[req.from] = registry.friendships[req.from] || [];
@@ -225,11 +244,26 @@ export async function acceptFriendRequest(requestId) {
     registry.friendships[req.to].push(req.from);
   }
 
+  // Create initial room message
+  const roomKey = getChatRoomKey(myUsername, friendUsername);
+  registry.chatRooms = registry.chatRooms || {};
+  if (!registry.chatRooms[roomKey] || registry.chatRooms[roomKey].length === 0) {
+    registry.chatRooms[roomKey] = [
+      {
+        id: 'sys_' + Date.now(),
+        sender: 'system',
+        text: `🎉 أنتم الآن أصدقاء! ابدأ المحادثة الآن، ويمكنك كتابة @gemini لسؤال الذكاء الاصطناعي في أي وقت.`,
+        timestamp: Date.now(),
+        isSystem: true
+      }
+    ];
+  }
+
   saveLocalRegistry(registry);
 
   // Send celebratory notification to User A (the one accepting)
   try {
-    notifications.sendNow('🎉 مبروك!', `قبلت صديقك @${req.from} وأصبحتم أصدقاء الآن! ابدأ الدردشة معه 🤝`);
+    notifications.sendNow('🎉 مبروك!', `قبلت صديقك @${friendUsername} وأصبحتم أصدقاء الآن! ابدأ الدردشة معه 🤝`);
   } catch (_) {}
 
   // Send celebratory event to User B (the sender of the request)
@@ -240,17 +274,26 @@ export async function acceptFriendRequest(requestId) {
     time: Date.now()
   });
 
-  return req;
+  return { req, friend: friendUsername };
 }
 
 // ---------------- 4. REJECT FRIEND REQUEST ----------------
 
 export async function rejectFriendRequest(requestId) {
+  const myUsername = getCurrentUsername();
   const registry = getLocalRegistry();
   const req = (registry.friendRequests || []).find(r => r.id === requestId);
   if (req) {
     req.status = 'rejected';
     saveLocalRegistry(registry);
+
+    // Notify the sender so their outgoing pending list clears
+    publishCloudEvent(`inbox_${req.from}`, {
+      type: 'friend_rejected',
+      by: myUsername,
+      requestId: req.id,
+      time: Date.now()
+    });
   }
   return true;
 }
@@ -355,11 +398,11 @@ export async function sendFriendMessage(friendUsername, text) {
     time: Date.now()
   });
 
-  // Check Bot integration
+  // Check Gemini AI Bot trigger
   const isBotEnabled = Boolean(registry.botSettings?.[roomKey]);
-  const isBotMentioned = cleanText.toLowerCase().includes('@bot') || cleanText.includes('@بوت') || cleanText.includes('@ai');
+  const isGeminiMentioned = /@gemini|@Gemini|@جيميني|@bot|@بوت|@ai/i.test(cleanText);
 
-  if (isBotEnabled || isBotMentioned) {
+  if (isBotEnabled || isGeminiMentioned) {
     triggerBotResponse(roomKey, myUsername, friendUsername, cleanText);
   }
 
@@ -368,37 +411,49 @@ export async function sendFriendMessage(friendUsername, text) {
 
 async function triggerBotResponse(roomKey, sender, friend, prompt) {
   try {
-    const systemPrompt = `You are "Seif AI Bot", an intelligent, friendly AI assistant participating in a group chat between two friends: @${sender} and @${friend}.
-Answer naturally, helpfully, and concisely in Arabic/English. Keep answers punchy and fun.`;
+    // Notify chat UI that Gemini is thinking
+    window.dispatchEvent(new CustomEvent('seif-gemini-thinking', { detail: { roomKey, status: true } }));
 
-    const res = await directGeminiCall(prompt, systemPrompt, [], 'gemini-flash-lite-latest');
-    const botReply = res?.reply;
+    const systemPrompt = `You are "Gemini", Google's intelligent, friendly AI assistant participating in a private group chat between two friends: @${sender} and @${friend}.
+Answer naturally, accurately, and helpfully in Arabic (or English if the user asks in English).
+Keep answers clear, well-structured, concise, and engaging.
+Both friends can see your response in this chat.`;
 
-    if (botReply) {
-      const registry = getLocalRegistry();
-      registry.chatRooms = registry.chatRooms || {};
-      registry.chatRooms[roomKey] = registry.chatRooms[roomKey] || [];
+    const cleanedPrompt = prompt.replace(/@gemini|@Gemini|@جيميني|@bot|@بوت|@ai/gi, '').trim() || prompt;
 
-      const botMsg = {
-        id: 'bot_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
-        sender: 'Seif AI Bot 🤖',
-        text: botReply,
-        timestamp: Date.now(),
-        isBot: true
-      };
+    const res = await directGeminiCall(cleanedPrompt, systemPrompt, [], 'gemini-flash-lite-latest');
+    const botReply = res?.reply || 'أهلاً بكما! كيف يمكنني مساعدتكم معاً؟ ✨';
 
-      registry.chatRooms[roomKey].push(botMsg);
-      saveLocalRegistry(registry);
+    const registry = getLocalRegistry();
+    registry.chatRooms = registry.chatRooms || {};
+    registry.chatRooms[roomKey] = registry.chatRooms[roomKey] || [];
 
-      publishCloudEvent(`inbox_${friend}`, {
-        type: 'dm_message',
-        message: botMsg,
-        friend: sender,
-        time: Date.now()
-      });
-    }
+    const botMsg = {
+      id: 'gemini_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+      sender: 'Gemini ✨',
+      text: botReply,
+      timestamp: Date.now(),
+      isBot: true
+    };
+
+    // 1. Save to sender's chat room locally
+    registry.chatRooms[roomKey].push(botMsg);
+    saveLocalRegistry(registry);
+
+    // 2. Publish to the friend's inbox on the cloud so BOTH friends receive it!
+    publishCloudEvent(`inbox_${friend}`, {
+      type: 'dm_message',
+      message: botMsg,
+      friend: sender,
+      time: Date.now()
+    });
+
+    // 3. Dispatch locally so sender's chat UI immediately shows Gemini's reply
+    window.dispatchEvent(new CustomEvent('seif-new-dm-received', { detail: botMsg }));
+    window.dispatchEvent(new CustomEvent('seif-gemini-thinking', { detail: { roomKey, status: false } }));
   } catch (err) {
-    console.warn('Bot auto-reply error:', err);
+    console.warn('Gemini auto-reply error:', err);
+    window.dispatchEvent(new CustomEvent('seif-gemini-thinking', { detail: { roomKey, status: false } }));
   }
 }
 
@@ -453,9 +508,17 @@ export async function checkNewIncomingDmMessages() {
     else if (ev.type === 'friend_request' && ev.request) {
       const req = ev.request;
       registry.friendRequests = registry.friendRequests || [];
-      if (!registry.friendRequests.some(x => x.id === req.id)) {
+      const existing = registry.friendRequests.find(x => x.id === req.id || (x.from === req.from && x.to === req.to && x.status === 'pending'));
+      if (!existing) {
         registry.friendRequests.push(req);
         modified = true;
+
+        try {
+          notifications.sendNow(`🤝 طلب صداقة جديد من @${req.from}`, `أرسل لك طلب صداقة! افتح التطبيق للقبول أو الرفض`);
+          playNotificationSound();
+        } catch (_) {}
+
+        window.dispatchEvent(new CustomEvent('seif-friend-request-received', { detail: req }));
       }
     }
 
@@ -477,10 +540,40 @@ export async function checkNewIncomingDmMessages() {
         if (found) found.status = 'accepted';
       }
 
+      // Ensure room has welcome message if empty
+      const roomKey = getChatRoomKey(myUsername, friend);
+      registry.chatRooms = registry.chatRooms || {};
+      if (!registry.chatRooms[roomKey] || registry.chatRooms[roomKey].length === 0) {
+        registry.chatRooms[roomKey] = [
+          {
+            id: 'sys_' + Date.now(),
+            sender: 'system',
+            text: `🎉 أنتم الآن أصدقاء! ابدأ المحادثة الآن، ويمكنك كتابة @gemini لسؤال الذكاء الاصطناعي في أي وقت.`,
+            timestamp: Date.now(),
+            isSystem: true
+          }
+        ];
+        modified = true;
+      }
+
+      window.dispatchEvent(new CustomEvent('seif-friend-accepted', { detail: { friend } }));
+
       // Trigger celebration notification to the sender!
       try {
         notifications.sendNow('🎉 مبروك!', `@${friend} قبل طلب صداقتك وأصبحتم أصدقاء الآن! ابدأ الدردشة معه 🤝`);
+        playNotificationSound();
       } catch (_) {}
+    }
+
+    // 4. Friend Request Rejected
+    else if (ev.type === 'friend_rejected' && ev.by) {
+      if (Array.isArray(registry.friendRequests)) {
+        const found = registry.friendRequests.find(r => r.from === myUsername && r.to === ev.by && r.status === 'pending');
+        if (found) {
+          found.status = 'rejected';
+          modified = true;
+        }
+      }
     }
 
     // 4. Friend Location Update

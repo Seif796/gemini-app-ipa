@@ -71,7 +71,7 @@ export default function App() {
         const newDmMessages = await checkNewIncomingDmMessages();
         if (Array.isArray(newDmMessages) && newDmMessages.length > 0) {
           for (const msg of newDmMessages) {
-            const senderTitle = msg.isBot ? '🤖 Seif AI Bot' : `@${msg.sender}`;
+            const senderTitle = msg.isBot ? '🤖 Gemini ✨' : `@${msg.sender}`;
             const messageBody = msg.text || '';
 
             // Native notification with Title = sender name, Body = message text
