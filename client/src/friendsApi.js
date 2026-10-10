@@ -134,13 +134,13 @@ async function publishCloudEvent(topic, data) {
   }
 }
 
-// Poll cloud inbox events for current user
+// Poll cloud inbox events for current user (lightweight fallback for last 120s)
 async function pollCloudInbox(username) {
   if (!username) return [];
   try {
     const controller = new AbortController();
     const tId = setTimeout(() => controller.abort(), 3500);
-    const res = await fetch(`${NTFY_PREFIX}inbox_${username}/json?poll=1&since=all`, {
+    const res = await fetch(`${NTFY_PREFIX}inbox_${username}/json?poll=1&since=120s`, {
       signal: controller.signal
     });
     clearTimeout(tId);
@@ -582,175 +582,226 @@ Both friends can see your response in this chat.`;
 // ---------------- 7. REAL-TIME INBOX & NOTIFICATION DISPATCHER ----------------
 
 const processedEventIds = new Set();
+let activeInboxEventSource = null;
+let currentStreamUsername = null;
 
-export async function checkNewIncomingDmMessages() {
+export function processIncomingSingleEvent(ev) {
+  if (!ev || !ev.type) return null;
   const myUsername = getCurrentUsername();
-  if (!myUsername) return [];
+  if (!myUsername) return null;
 
-  const events = await pollCloudInbox(myUsername);
-  if (!Array.isArray(events) || events.length === 0) return [];
+  const eventKey = `${ev.type}_${ev.message?.id || ev.request?.id || ev.requestId || ev.time || Math.random()}`;
+  if (processedEventIds.has(eventKey)) return null;
+  processedEventIds.add(eventKey);
 
-  const newDmMessages = [];
   const registry = getLocalRegistry();
   let modified = false;
+  let newMsg = null;
 
-  for (const ev of events) {
-    if (!ev || !ev.type) continue;
-    const eventKey = `${ev.type}_${ev.message?.id || ev.request?.id || ev.requestId || ev.time}`;
-    if (processedEventIds.has(eventKey)) continue;
-    processedEventIds.add(eventKey);
-
-    // 1. Incoming DM Message
-    if (ev.type === 'dm_message' && ev.message) {
-      const m = ev.message;
-      if (m.sender && m.sender !== myUsername) {
-        const friend = ev.friend || m.sender;
-        const roomKey = getChatRoomKey(myUsername, friend);
-
-        registry.chatRooms = registry.chatRooms || {};
-        registry.chatRooms[roomKey] = registry.chatRooms[roomKey] || [];
-
-        // Avoid duplicate message in chat history
-        if (!registry.chatRooms[roomKey].some(x => x.id === m.id)) {
-          registry.chatRooms[roomKey].push(m);
-          modified = true;
-        }
-
-        newDmMessages.push({
-          id: m.id,
-          sender: m.sender,
-          text: m.text || '',
-          timestamp: m.timestamp || Date.now(),
-          isBot: Boolean(m.isBot)
-        });
-      }
-    }
-
-    // 2. Incoming Friend Request
-    else if (ev.type === 'friend_request' && ev.request) {
-      const req = ev.request;
-      registry.friendRequests = registry.friendRequests || [];
-      const existing = registry.friendRequests.find(x => x.id === req.id || (x.from === req.from && x.to === req.to && x.status === 'pending'));
-      if (!existing) {
-        registry.friendRequests.push(req);
-        modified = true;
-
-        try {
-          notifications.sendNow(`🤝 طلب صداقة جديد من @${req.from}`, `أرسل لك طلب صداقة! افتح التطبيق للقبول أو الرفض`);
-          playNotificationSound();
-        } catch (_) {}
-
-        window.dispatchEvent(new CustomEvent('seif-friend-request-received', { detail: req }));
-      }
-    }
-
-    // 3. Friend Request Accepted
-    else if (ev.type === 'friend_accepted' && ev.by) {
-      const friend = ev.by;
-      registry.friendships = registry.friendships || {};
-      registry.friendships[myUsername] = registry.friendships[myUsername] || [];
-      registry.friendships[friend] = registry.friendships[friend] || [];
-
-      if (!registry.friendships[myUsername].includes(friend)) {
-        registry.friendships[myUsername].push(friend);
-        modified = true;
-      }
-
-      // Mark request as accepted locally
-      if (Array.isArray(registry.friendRequests)) {
-        const found = registry.friendRequests.find(r => r.from === myUsername && r.to === friend);
-        if (found) found.status = 'accepted';
-      }
-
-      // Ensure room has welcome message if empty
+  // 1. Incoming DM Message (< 50ms)
+  if (ev.type === 'dm_message' && ev.message) {
+    const m = ev.message;
+    if (m.sender && m.sender !== myUsername) {
+      const friend = ev.friend || m.sender;
       const roomKey = getChatRoomKey(myUsername, friend);
+
       registry.chatRooms = registry.chatRooms || {};
-      if (!registry.chatRooms[roomKey] || registry.chatRooms[roomKey].length === 0) {
-        registry.chatRooms[roomKey] = [
-          {
-            id: 'sys_' + Date.now(),
-            sender: 'system',
-            text: `🎉 أنتم الآن أصدقاء! ابدأ المحادثة الآن، ويمكنك كتابة @gemini لسؤال الذكاء الاصطناعي في أي وقت.`,
-            timestamp: Date.now(),
-            isSystem: true
-          }
-        ];
+      registry.chatRooms[roomKey] = registry.chatRooms[roomKey] || [];
+
+      if (!registry.chatRooms[roomKey].some(x => x.id === m.id)) {
+        registry.chatRooms[roomKey].push(m);
         modified = true;
       }
 
-      window.dispatchEvent(new CustomEvent('seif-friend-accepted', { detail: { friend } }));
-
-      // Trigger celebration notification to the sender!
-      try {
-        notifications.sendNow('🎉 مبروك!', `@${friend} قبل طلب صداقتك وأصبحتم أصدقاء الآن! ابدأ الدردشة معه 🤝`);
-        playNotificationSound();
-      } catch (_) {}
-    }
-
-    // 4. Friend Request Rejected
-    else if (ev.type === 'friend_rejected' && ev.by) {
-      if (Array.isArray(registry.friendRequests)) {
-        const found = registry.friendRequests.find(r => r.from === myUsername && r.to === ev.by && r.status === 'pending');
-        if (found) {
-          found.status = 'rejected';
-          modified = true;
-        }
-      }
-    }
-
-    // 5. Incoming Call Invite
-    else if (ev.type === 'call_invite' && ev.from && ev.from !== myUsername) {
-      window.dispatchEvent(new CustomEvent('seif-call-invite', { detail: ev }));
-      try {
-        const typeText = ev.callType === 'video' ? 'مكالمة فيديو' : 'مكالمة صوتية';
-        notifications.sendNow(`📞 ${typeText} واردة من @${ev.from}`, `يريد بدء ${typeText} معك الآن! 🔔`);
-        playNotificationSound();
-      } catch (_) {}
-    }
-
-    // 6. Call Response (Accepted / Declined)
-    else if (ev.type === 'call_response' && ev.from && ev.from !== myUsername) {
-      window.dispatchEvent(new CustomEvent('seif-call-response', { detail: ev }));
-    }
-
-    // 6.1 WebRTC Call Signaling (SDP Offer/Answer & ICE Candidates)
-    else if (ev.type === 'call_signal' && ev.from && ev.from !== myUsername && ev.signal) {
-      window.dispatchEvent(new CustomEvent('seif-call-signal', { detail: ev }));
-    }
-
-    // 7. Call Ended
-    else if (ev.type === 'call_end' && ev.from && ev.from !== myUsername) {
-      window.dispatchEvent(new CustomEvent('seif-call-end', { detail: ev }));
-    }
-
-    // 8. Friend Removed
-    else if (ev.type === 'friend_removed' && ev.by) {
-      const removedUser = ev.by;
-      registry.friendships = registry.friendships || {};
-      if (Array.isArray(registry.friendships[myUsername])) {
-        registry.friendships[myUsername] = registry.friendships[myUsername].filter(f => f !== removedUser);
-        modified = true;
-      }
-      window.dispatchEvent(new CustomEvent('seif-friend-removed', { detail: { friend: removedUser } }));
-    }
-
-    // 9. Friend Location Update
-    else if (ev.type === 'friend_location' && ev.sender && ev.lat && ev.lng) {
-      registry.users = registry.users || {};
-      registry.users[ev.sender] = registry.users[ev.sender] || { username: ev.sender };
-      registry.users[ev.sender].location = {
-        lat: ev.lat,
-        lng: ev.lng,
-        updatedAt: ev.time || Date.now()
+      newMsg = {
+        id: m.id,
+        sender: m.sender,
+        text: m.text || '',
+        timestamp: m.timestamp || Date.now(),
+        isBot: Boolean(m.isBot)
       };
+
+      // Native notification & Audio chime (visible even if window is minimized or outside)
+      const senderTitle = m.isBot ? '🤖 Gemini ✨' : `@${m.sender}`;
+      notifications.sendNow(senderTitle, m.text || '');
+
+      // Reactive event for live Chat room & Chats list
+      window.dispatchEvent(new CustomEvent('seif-new-dm-received', { detail: m }));
+    }
+  }
+
+  // 2. Incoming Friend Request
+  else if (ev.type === 'friend_request' && ev.request) {
+    const req = ev.request;
+    registry.friendRequests = registry.friendRequests || [];
+    const existing = registry.friendRequests.find(x => x.id === req.id || (x.from === req.from && x.to === req.to && x.status === 'pending'));
+    if (!existing) {
+      registry.friendRequests.push(req);
+      modified = true;
+
+      notifications.sendNow(`🤝 طلب صداقة جديد من @${req.from}`, `أرسل لك طلب صداقة! افتح التطبيق للقبول أو الرفض`);
+      window.dispatchEvent(new CustomEvent('seif-friend-request-received', { detail: req }));
+    }
+  }
+
+  // 3. Friend Request Accepted
+  else if (ev.type === 'friend_accepted' && ev.by) {
+    const friend = ev.by;
+    registry.friendships = registry.friendships || {};
+    registry.friendships[myUsername] = registry.friendships[myUsername] || [];
+    registry.friendships[friend] = registry.friendships[friend] || [];
+
+    if (!registry.friendships[myUsername].includes(friend)) {
+      registry.friendships[myUsername].push(friend);
       modified = true;
     }
+
+    if (Array.isArray(registry.friendRequests)) {
+      const found = registry.friendRequests.find(r => r.from === myUsername && r.to === friend);
+      if (found) found.status = 'accepted';
+    }
+
+    const roomKey = getChatRoomKey(myUsername, friend);
+    registry.chatRooms = registry.chatRooms || {};
+    if (!registry.chatRooms[roomKey] || registry.chatRooms[roomKey].length === 0) {
+      registry.chatRooms[roomKey] = [
+        {
+          id: 'sys_' + Date.now(),
+          sender: 'system',
+          text: `🎉 أنتم الآن أصدقاء! ابدأ المحادثة الآن، ويمكنك كتابة @gemini لسؤال الذكاء الاصطناعي في أي وقت.`,
+          timestamp: Date.now(),
+          isSystem: true
+        }
+      ];
+      modified = true;
+    }
+
+    window.dispatchEvent(new CustomEvent('seif-friend-accepted', { detail: { friend } }));
+    notifications.sendNow('🎉 مبروك!', `@${friend} قبل طلب صداقتك وأصبحتم أصدقاء الآن! ابدأ الدردشة معه 🤝`);
+  }
+
+  // 4. Friend Request Rejected
+  else if (ev.type === 'friend_rejected' && ev.by) {
+    if (Array.isArray(registry.friendRequests)) {
+      const found = registry.friendRequests.find(r => r.from === myUsername && r.to === ev.by && r.status === 'pending');
+      if (found) {
+        found.status = 'rejected';
+        modified = true;
+      }
+    }
+  }
+
+  // 5. Incoming Call Invite (< 50ms)
+  else if (ev.type === 'call_invite' && ev.from && ev.from !== myUsername) {
+    window.dispatchEvent(new CustomEvent('seif-call-invite', { detail: ev }));
+    const typeText = ev.callType === 'video' ? 'مكالمة فيديو' : 'مكالمة صوتية';
+    notifications.sendNow(`📞 ${typeText} واردة من @${ev.from}`, `يريد بدء ${typeText} معك الآن! 🔔`);
+  }
+
+  // 6. Call Response (Accepted / Declined)
+  else if (ev.type === 'call_response' && ev.from && ev.from !== myUsername) {
+    window.dispatchEvent(new CustomEvent('seif-call-response', { detail: ev }));
+  }
+
+  // 6.1 WebRTC Call Signaling (SDP Offer/Answer & ICE Candidates)
+  else if (ev.type === 'call_signal' && ev.from && ev.from !== myUsername && ev.signal) {
+    window.dispatchEvent(new CustomEvent('seif-call-signal', { detail: ev }));
+  }
+
+  // 7. Call Ended
+  else if (ev.type === 'call_end' && ev.from && ev.from !== myUsername) {
+    window.dispatchEvent(new CustomEvent('seif-call-end', { detail: ev }));
+  }
+
+  // 8. Friend Removed
+  else if (ev.type === 'friend_removed' && ev.by) {
+    const removedUser = ev.by;
+    registry.friendships = registry.friendships || {};
+    if (Array.isArray(registry.friendships[myUsername])) {
+      registry.friendships[myUsername] = registry.friendships[myUsername].filter(f => f !== removedUser);
+      modified = true;
+    }
+    window.dispatchEvent(new CustomEvent('seif-friend-removed', { detail: { friend: removedUser } }));
+  }
+
+  // 9. Friend Location Update
+  else if (ev.type === 'friend_location' && ev.sender && ev.lat && ev.lng) {
+    registry.users = registry.users || {};
+    registry.users[ev.sender] = registry.users[ev.sender] || { username: ev.sender };
+    registry.users[ev.sender].location = {
+      lat: ev.lat,
+      lng: ev.lng,
+      updatedAt: ev.time || Date.now()
+    };
+    modified = true;
   }
 
   if (modified) {
     saveLocalRegistry(registry);
   }
 
+  return newMsg;
+}
+
+export function initRealtimeInboxStream() {
+  const myUsername = getCurrentUsername();
+  if (!myUsername) {
+    if (activeInboxEventSource) {
+      activeInboxEventSource.close();
+      activeInboxEventSource = null;
+      currentStreamUsername = null;
+    }
+    return;
+  }
+
+  if (activeInboxEventSource && currentStreamUsername === myUsername) {
+    return;
+  }
+
+  if (activeInboxEventSource) {
+    activeInboxEventSource.close();
+  }
+
+  currentStreamUsername = myUsername;
+
+  try {
+    const es = new EventSource(`${NTFY_PREFIX}inbox_${myUsername}/sse`);
+    activeInboxEventSource = es;
+
+    es.onmessage = (event) => {
+      try {
+        const item = JSON.parse(event.data);
+        if (item && item.message) {
+          const payload = typeof item.message === 'string' ? JSON.parse(item.message) : item.message;
+          processIncomingSingleEvent(payload);
+        }
+      } catch (_) {}
+    };
+
+    es.onerror = () => {
+      // EventSource automatically retries
+    };
+  } catch (err) {
+    console.warn('Real-time SSE error:', err);
+  }
+}
+
+export async function checkNewIncomingDmMessages() {
+  const myUsername = getCurrentUsername();
+  if (!myUsername) return [];
+
+  // Ensure persistent SSE stream is active
+  initRealtimeInboxStream();
+
+  // Lightweight fallback poll (last 120s)
+  const events = await pollCloudInbox(myUsername);
+  if (!Array.isArray(events) || events.length === 0) return [];
+
+  const newDmMessages = [];
+  for (const ev of events) {
+    const msg = processIncomingSingleEvent(ev);
+    if (msg) newDmMessages.push(msg);
+  }
   return newDmMessages;
 }
 
@@ -860,4 +911,99 @@ export async function checkDepartedFriendsAlerts() {
 
   const registry = getLocalRegistry();
   return findDepartedFriends(myUsername, registry);
+}
+
+// ---------------- 10. QR CODE LOGIN (LAPTOP <-> MOBILE) ----------------
+
+let activeQrLoginSource = null;
+
+export function createQrLoginSession(onSuccess) {
+  const sessionId = 'qr_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
+  const topic = `qr_login_${sessionId}`;
+  const qrData = JSON.stringify({ type: 'seif_qr_login', sessionId, time: Date.now() });
+
+  // 1. Listen via SSE for instant approval (< 50ms)
+  try {
+    if (activeQrLoginSource) activeQrLoginSource.close();
+    const es = new EventSource(`${NTFY_PREFIX}${topic}/sse`);
+    activeQrLoginSource = es;
+
+    es.onmessage = (event) => {
+      try {
+        const item = JSON.parse(event.data);
+        if (item && item.message) {
+          const payload = typeof item.message === 'string' ? JSON.parse(item.message) : item.message;
+          if (payload && payload.status === 'approved' && payload.username) {
+            es.close();
+            activeQrLoginSource = null;
+            setCurrentUsername(payload.username);
+            window.dispatchEvent(new CustomEvent('seif-qr-login-success', { detail: { username: payload.username } }));
+            if (onSuccess) onSuccess(payload.username);
+          }
+        }
+      } catch (_) {}
+    };
+  } catch (_) {}
+
+  // 2. Lightweight fallback polling
+  const pollInterval = setInterval(async () => {
+    try {
+      const res = await fetch(`${NTFY_PREFIX}${topic}/json?poll=1&since=60s`);
+      if (res.ok) {
+        const text = await res.text();
+        const lines = text.trim().split('\n');
+        for (const line of lines) {
+          if (!line) continue;
+          try {
+            const item = JSON.parse(line);
+            const payload = typeof item.message === 'string' ? JSON.parse(item.message) : item.message;
+            if (payload && payload.status === 'approved' && payload.username) {
+              clearInterval(pollInterval);
+              if (activeQrLoginSource) activeQrLoginSource.close();
+              activeQrLoginSource = null;
+              setCurrentUsername(payload.username);
+              window.dispatchEvent(new CustomEvent('seif-qr-login-success', { detail: { username: payload.username } }));
+              if (onSuccess) onSuccess(payload.username);
+              break;
+            }
+          } catch (_) {}
+        }
+      }
+    } catch (_) {}
+  }, 1000);
+
+  return {
+    sessionId,
+    qrData,
+    cancel: () => {
+      clearInterval(pollInterval);
+      if (activeQrLoginSource) {
+        activeQrLoginSource.close();
+        activeQrLoginSource = null;
+      }
+    }
+  };
+}
+
+export async function approveQrLoginSession(sessionId) {
+  const myUsername = getCurrentUsername();
+  if (!myUsername || !sessionId) throw new Error('يرجى تسجيل الدخول أولاً');
+
+  const topic = `qr_login_${sessionId}`;
+  await publishCloudEvent(topic, {
+    status: 'approved',
+    username: myUsername,
+    time: Date.now()
+  });
+
+  return myUsername;
+}
+
+// Automatically start real-time SSE stream on startup and wake
+if (typeof window !== 'undefined') {
+  setTimeout(() => initRealtimeInboxStream(), 500);
+  window.addEventListener('online', () => initRealtimeInboxStream());
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) initRealtimeInboxStream();
+  });
 }

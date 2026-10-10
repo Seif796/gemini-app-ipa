@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Bell, LogOut, CheckCircle2, Hourglass, Clock, ShieldAlert, 
-  Volume2, UserCheck, Globe, Info, Sparkles, Code2, Cpu 
+  Volume2, UserCheck, Globe, Info, Sparkles, Code2, Cpu, Laptop, QrCode 
 } from 'lucide-react';
 import { getActiveTheme } from '../themeIcons';
 import { getScreenTimeData, saveScreenTimeData, formatMinutes, formatSeconds } from '../screenTime';
@@ -203,6 +203,36 @@ export default function SettingsTab({ user, onLogout, showToast, onOpenAbout }) 
               {t.active}
             </span>
           </div>
+        </div>
+
+        {/* 💻 Link Laptop via QR Code */}
+        <div className="glass-panel" style={{ padding: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Laptop size={18} color="#38bdf8" />
+              <h3 style={{ fontSize: '15px', fontWeight: '700', color: '#fff' }}>
+                {lang === 'ar' ? 'ربط اللابتوب بحسابك' : 'Link Laptop via QR'}
+              </h3>
+            </div>
+            <span style={{ fontSize: '11px', color: '#10b981', fontWeight: '700' }}>
+              ⚡ فوري
+            </span>
+          </div>
+          <p style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '12px', lineHeight: '1.4' }}>
+            {lang === 'ar' 
+              ? 'افتح تطبيق اللابتوب واضغط (دخول عبر كود QR)، ثم اكتب الرمز هنا لتسجيل الدخول مباشرة بدون كتابة اسم المستخدم!'
+              : 'Open the laptop app and click QR login, then enter the session code here to login instantly!'}
+          </p>
+          <button
+            onClick={() => {
+              window.dispatchEvent(new CustomEvent('seif-open-qr-modal', { detail: { mode: 'approve' } }));
+            }}
+            className="ios-button-primary"
+            style={{ width: '100%', padding: '10px', fontSize: '13px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+          >
+            <QrCode size={16} />
+            <span>{lang === 'ar' ? 'تأكيد دخول اللابتوب 💻' : 'Approve Laptop Login 💻'}</span>
+          </button>
         </div>
 
         {/* ℹ️ About App & Developer Card */}

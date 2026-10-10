@@ -1,5 +1,5 @@
 import React from 'react';
-import { User, Plus, Check, Trash2, X, Shield, ArrowRight } from 'lucide-react';
+import { User, Plus, Check, Trash2, X, Shield, ArrowRight, Laptop } from 'lucide-react';
 import { getSavedAccounts, switchAccount, removeSavedAccount, getCurrentUsername } from '../friendsApi';
 import { getAppLanguage } from '../i18n';
 
@@ -191,6 +191,33 @@ export default function AccountSwitcherModal({ isOpen, onClose, onAddNew, showTo
         >
           <Plus size={18} />
           <span>{lang === 'ar' ? 'إنشاء حساب آخر أو تسجيل دخول 🔑' : 'Add Another Account 🔑'}</span>
+        </button>
+
+        {/* Link Laptop Button */}
+        <button
+          onClick={() => {
+            onClose();
+            window.dispatchEvent(new CustomEvent('seif-open-qr-modal', { detail: { mode: 'approve' } }));
+          }}
+          style={{
+            width: '100%',
+            marginTop: '8px',
+            padding: '11px',
+            borderRadius: '16px',
+            background: 'rgba(56, 189, 248, 0.1)',
+            border: '1px solid rgba(56, 189, 248, 0.25)',
+            color: '#38bdf8',
+            fontSize: '13px',
+            fontWeight: '700',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            cursor: 'pointer'
+          }}
+        >
+          <Laptop size={16} />
+          <span>{lang === 'ar' ? 'ربط اللابتوب بحسابك عبر كود QR 💻' : 'Link Laptop via QR 💻'}</span>
         </button>
       </div>
     </div>

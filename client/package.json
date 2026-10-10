@@ -20,13 +20,14 @@
   "build": {
     "appId": "com.seif.aicompanion.desktop",
     "productName": "Seif AI Companion",
+    "compression": "maximum",
+    "asar": true,
     "directories": {
       "output": "release"
     },
     "files": [
       "dist/**/*",
       "electron/**/*",
-      "public/**/*",
       "package.json"
     ],
     "win": {
@@ -41,7 +42,9 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "shortcutName": "Seif AI Companion"
+      "shortcutName": "Seif AI Companion",
+      "differentialPackage": false,
+      "deleteAppDataOnUninstall": true
     }
   },
   "dependencies": {

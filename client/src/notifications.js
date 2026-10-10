@@ -151,31 +151,53 @@ class NotificationService {
   }
 
   async sendNow(title, body) {
-    await this.ensurePermission();
+    // 1. If running inside Electron Desktop, fire OS-level notification immediately
+    if (window.electronAPI && typeof window.electronAPI.sendNotification === 'function') {
+      try {
+        window.electronAPI.sendNotification({ title, body });
+      } catch (_) {}
+    }
 
+    // 2. Play audible audio chime and haptic feedback
+    playNotificationSound();
+
+    // 3. Mobile Capacitor LocalNotifications (shows in iOS/Android notification center)
     try {
+      await this.ensurePermission();
       await LocalNotifications.schedule({
         notifications: [
           {
             title: title || 'Seif Ai Test',
-            body: body || 'You have a new message!',
+            body: body || 'رسالة جديدة!',
             id: Math.floor(Math.random() * 100000) + 1,
-            schedule: { at: new Date(Date.now() + 100) },
+            schedule: { at: new Date(Date.now() + 50) },
             sound: 'notification.wav'
           }
         ]
       });
       return;
-    } catch (e) {
-      // Fallback for web browser where LocalNotifications is not available
-      playNotificationSound();
-      if ('Notification' in window && Notification.permission === 'granted') {
-        new Notification(title || 'Seif Ai Test', {
-          body,
-          icon: '/app-icon.png'
-        });
+    } catch (_) {}
+
+    // 4. Web Browser Notification fallback
+    try {
+      if ('Notification' in window) {
+        if (Notification.permission === 'granted') {
+          new Notification(title || 'Seif Ai Test', {
+            body,
+            icon: '/app-icon.png'
+          });
+        } else if (Notification.permission === 'default') {
+          Notification.requestPermission().then(p => {
+            if (p === 'granted') {
+              new Notification(title || 'Seif Ai Test', {
+                body,
+                icon: '/app-icon.png'
+              });
+            }
+          });
+        }
       }
-    }
+    } catch (_) {}
   }
 
   async scheduleLocal({ title, body }) {
