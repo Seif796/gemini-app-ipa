@@ -67,3 +67,4 @@ export default function LanguageToggle({ compact = false, showToast = null }) {
     </button>
   );
 }
+

@@ -1,6 +1,6 @@
 import { LocalNotifications } from '@capacitor/local-notifications';
 
-// Ultra-crisp, multi-harmonic crystal bell chime synthesized via Web Audio API (100% offline & zero latency)
+// Snapchat-style signature chime synthesized via Web Audio API (tactile pop attack + bright ascending double-ping + glass sparkle)
 export function playSynthNotificationChime() {
   try {
     const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -10,49 +10,82 @@ export function playSynthNotificationChime() {
 
     const now = ctx.currentTime;
     const master = ctx.createGain();
-    master.gain.setValueAtTime(0.5, now);
+    master.gain.setValueAtTime(0.7, now);
     master.connect(ctx.destination);
 
-    // Warm low-pass filter for pristine studio sound
+    // Warm studio filter
     const filter = ctx.createBiquadFilter();
     filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(3800, now);
+    filter.frequency.setValueAtTime(4500, now);
     filter.connect(master);
 
-    // Harmonic crystalline chord notes: F5, A5, C6, E6, G6, C7
-    const tones = [
-      { f: 698.46, d: 0.00, dur: 0.80, v: 0.35 },
-      { f: 880.00, d: 0.04, dur: 0.85, v: 0.40 },
-      { f: 1046.50, d: 0.08, dur: 0.95, v: 0.45 },
-      { f: 1318.51, d: 0.12, dur: 1.05, v: 0.35 },
-      { f: 1567.98, d: 0.16, dur: 1.15, v: 0.30 },
-      { f: 2093.00, d: 0.20, dur: 0.65, v: 0.20 } // celestial sparkle
-    ];
+    // 1. Tactile Snap / Pop attack (frequency drop from 2400Hz to 1100Hz in 25ms)
+    const snapOsc = ctx.createOscillator();
+    const snapGain = ctx.createGain();
+    snapOsc.type = 'sine';
+    snapOsc.frequency.setValueAtTime(2400, now);
+    snapOsc.frequency.exponentialRampToValueAtTime(1100, now + 0.025);
+    snapGain.gain.setValueAtTime(0.5, now);
+    snapGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.035);
+    snapOsc.connect(snapGain);
+    snapGain.connect(filter);
+    snapOsc.start(now);
+    snapOsc.stop(now + 0.04);
 
-    tones.forEach(({ f, d, dur, v }) => {
-      const osc = ctx.createOscillator();
-      const g = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(f, now + d);
-      g.gain.setValueAtTime(0.0001, now + d);
-      g.gain.exponentialRampToValueAtTime(v, now + d + 0.02);
-      g.gain.exponentialRampToValueAtTime(0.0001, now + d + dur);
-      osc.connect(g);
-      g.connect(filter);
-      osc.start(now + d);
-      osc.stop(now + d + dur + 0.05);
-    });
+    // 2. First Chime Note: C6 (1046.5 Hz) - warm energetic ping at t = 0.015s
+    const n1Osc = ctx.createOscillator();
+    const n1Gain = ctx.createGain();
+    n1Osc.type = 'sine';
+    n1Osc.frequency.setValueAtTime(1046.5, now + 0.015);
+    n1Gain.gain.setValueAtTime(0.0001, now + 0.015);
+    n1Gain.gain.exponentialRampToValueAtTime(0.55, now + 0.02);
+    n1Gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.28);
+    n1Osc.connect(n1Gain);
+    n1Gain.connect(filter);
+    n1Osc.start(now + 0.015);
+    n1Osc.stop(now + 0.30);
+
+    // 3. Second Chime Note (Signature Ascending Sparkle Ping): G6 (1567.98 Hz) at t = 0.075s
+    const n2Osc = ctx.createOscillator();
+    const n2Gain = ctx.createGain();
+    n2Osc.type = 'sine';
+    n2Osc.frequency.setValueAtTime(1567.98, now + 0.075);
+    n2Gain.gain.setValueAtTime(0.0001, now + 0.075);
+    n2Gain.gain.exponentialRampToValueAtTime(0.70, now + 0.082);
+    n2Gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.58);
+    n2Osc.connect(n2Gain);
+    n2Gain.connect(filter);
+    n2Osc.start(now + 0.075);
+    n2Osc.stop(now + 0.60);
+
+    // 4. High celestial sparkle overtone: C7 (2093.0 Hz) at t = 0.085s
+    const n3Osc = ctx.createOscillator();
+    const n3Gain = ctx.createGain();
+    n3Osc.type = 'sine';
+    n3Osc.frequency.setValueAtTime(2093.0, now + 0.085);
+    n3Gain.gain.setValueAtTime(0.0001, now + 0.085);
+    n3Gain.gain.exponentialRampToValueAtTime(0.35, now + 0.095);
+    n3Gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.45);
+    n3Osc.connect(n3Gain);
+    n3Gain.connect(filter);
+    n3Osc.start(now + 0.085);
+    n3Osc.stop(now + 0.48);
   } catch (err) {
     console.warn('Synth notification chime error:', err);
   }
 }
 
-// Master notification sound player: plays audio file with instant synth fallback + haptic vibration
+let cachedAudio = null;
+
+// Master notification sound player: plays custom audio file with instant synth fallback + haptic vibration
 export function playNotificationSound() {
   try {
-    const audio = new Audio('/notification.wav');
-    audio.volume = 0.9;
-    const p = audio.play();
+    if (!cachedAudio) {
+      cachedAudio = new Audio('/notification.wav');
+    }
+    cachedAudio.currentTime = 0;
+    cachedAudio.volume = 1.0;
+    const p = cachedAudio.play();
     if (p !== undefined) {
       p.catch(() => playSynthNotificationChime());
     }
@@ -145,6 +178,10 @@ class NotificationService {
         });
       }
     }
+  }
+
+  async scheduleLocal({ title, body }) {
+    return this.sendNow(title, body);
   }
 
   async scheduleReminder(title, delaySeconds = 60) {

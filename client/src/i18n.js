@@ -316,3 +316,4 @@ export function useTranslation() {
 export function getTranslation(lang = getAppLanguage()) {
   return translations[lang] || translations.ar;
 }
+
