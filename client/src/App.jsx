@@ -4,6 +4,7 @@ import { getActiveTheme, setActiveTheme } from './themeIcons';
 import { getScreenTimeData, saveScreenTimeData, formatSeconds } from './screenTime';
 import { notifications } from './notifications';
 import { getCurrentUsername, getFriendsData } from './friendsApi';
+import { getAppLanguage } from './i18n';
 import TabBar from './components/TabBar';
 import ChatTab from './components/ChatTab';
 import FriendsTab from './components/FriendsTab';
@@ -28,12 +29,25 @@ export default function App() {
     setActiveTheme(getActiveTheme().id);
     setGuestMode(true);
 
+    const initialLang = getAppLanguage();
+    document.documentElement.dir = initialLang === 'ar' ? 'rtl' : 'ltr';
+    document.documentElement.lang = initialLang;
+
     const handleStChange = (e) => {
       if (e.detail) setScreenTime({ ...e.detail });
     };
+
+    const handleLangChange = (e) => {
+      const l = e.detail || getAppLanguage();
+      document.documentElement.dir = l === 'ar' ? 'rtl' : 'ltr';
+      document.documentElement.lang = l;
+    };
+
     window.addEventListener('seif-screentime-updated', handleStChange);
+    window.addEventListener('seif-language-changed', handleLangChange);
     return () => {
       window.removeEventListener('seif-screentime-updated', handleStChange);
+      window.removeEventListener('seif-language-changed', handleLangChange);
     };
   }, []);
 

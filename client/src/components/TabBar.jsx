@@ -1,13 +1,23 @@
-import React from 'react';
-import { MessageSquare, Users, Wand2, FileText, CheckSquare, Settings } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { MessageSquare, Users, Wand2, FileText, Settings } from 'lucide-react';
+import { getAppLanguage, getTranslation } from '../i18n';
 
 export default function TabBar({ currentTab, onSelectTab, unreadTasksCount = 0, pendingFriendsCount = 0 }) {
+  const [lang, setLang] = useState(getAppLanguage());
+  const t = getTranslation(lang);
+
+  useEffect(() => {
+    const handleLang = (e) => setLang(e.detail || getAppLanguage());
+    window.addEventListener('seif-language-changed', handleLang);
+    return () => window.removeEventListener('seif-language-changed', handleLang);
+  }, []);
+
   const tabs = [
-    { id: 'chat', label: 'AI Chat', icon: MessageSquare },
-    { id: 'friends', label: 'Friends', icon: Users, badge: pendingFriendsCount },
-    { id: 'tools', label: 'Tools', icon: Wand2 },
-    { id: 'notes', label: 'Notes', icon: FileText },
-    { id: 'settings', label: 'Settings', icon: Settings },
+    { id: 'chat', label: t.tabChat, icon: MessageSquare },
+    { id: 'friends', label: t.tabFriends, icon: Users, badge: pendingFriendsCount },
+    { id: 'tools', label: t.tabTools, icon: Wand2 },
+    { id: 'notes', label: t.tabNotes, icon: FileText },
+    { id: 'settings', label: t.tabSettings, icon: Settings },
   ];
 
   return (

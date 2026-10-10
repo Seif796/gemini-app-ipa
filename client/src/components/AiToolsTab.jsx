@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Sparkles, Wand2, FileText, CheckCircle, Languages, Copy, Check, MessageSquare, ArrowRight, Zap, Lightbulb } from 'lucide-react';
 import { api } from '../api';
+import LanguageToggle from './LanguageToggle';
 
 const TOOL_MODES = [
   { id: 'summarize', name: 'Summarizer (تلخيص نصوص)', icon: '📝', prompt: 'Summarize the following text clearly in bullet points with the main takeaways:' },
@@ -85,17 +86,20 @@ export default function AiToolsTab({ showToast, onSendToChat }) {
             <p style={{ fontSize: '11px', color: '#94a3b8' }}>أدوات ذكية للمذاكرة والتلخيص والترجمة</p>
           </div>
         </div>
-        <span style={{
-          background: 'rgba(168, 85, 247, 0.15)',
-          border: '1px solid rgba(168, 85, 247, 0.3)',
-          color: '#c084fc',
-          padding: '4px 10px',
-          borderRadius: '12px',
-          fontSize: '11px',
-          fontWeight: '700'
-        }}>
-          Gemini ⚡
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <LanguageToggle compact={true} showToast={showToast} />
+          <span style={{
+            background: 'rgba(168, 85, 247, 0.15)',
+            border: '1px solid rgba(168, 85, 247, 0.3)',
+            color: '#c084fc',
+            padding: '4px 10px',
+            borderRadius: '12px',
+            fontSize: '11px',
+            fontWeight: '700'
+          }}>
+            Gemini ⚡
+          </span>
+        </div>
       </header>
 
       {/* Content */}

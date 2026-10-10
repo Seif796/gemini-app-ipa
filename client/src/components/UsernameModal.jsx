@@ -1,13 +1,24 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User, Sparkles, Check, ArrowRight, ShieldCheck, AlertCircle } from 'lucide-react';
 import { registerOrLoginUsername } from '../friendsApi';
+import { getAppLanguage, getTranslation } from '../i18n';
 import AppIconBadge from './AppIconBadge';
+import LanguageToggle from './LanguageToggle';
 
 export default function UsernameModal({ isOpen, onComplete, showToast }) {
+  const [lang, setLang] = useState(getAppLanguage());
+  const t = getTranslation(lang);
+
   const [username, setUsername] = useState('');
   const [isExisting, setIsExisting] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    const handleLang = (e) => setLang(e.detail || getAppLanguage());
+    window.addEventListener('seif-language-changed', handleLang);
+    return () => window.removeEventListener('seif-language-changed', handleLang);
+  }, []);
 
   if (!isOpen) return null;
 
@@ -15,19 +26,19 @@ export default function UsernameModal({ isOpen, onComplete, showToast }) {
     e.preventDefault();
     setError('');
 
-    const clean = username.trim();
+    const clean = username.replace(/^@+/, '').trim();
     if (!clean) {
-      setError('يرجى كتابة اسم المستخدم');
+      setError(t.errEmptyUsername);
       return;
     }
 
     setLoading(true);
     try {
       const user = await registerOrLoginUsername(clean, isExisting);
-      showToast(isExisting ? `👋 أهلاً بعودتك يا @${user.username}!` : `🎉 تم تسجيل دخولك بنجاح باسم @${user.username}!`, 'success');
+      showToast(isExisting ? `${t.welcomeBackUser} @${user.username}!` : `${t.welcomeNewUser} @${user.username}!`, 'success');
       onComplete(user.username);
     } catch (err) {
-      setError(err.message || 'حدث خطأ، يرجى المحاولة مرة أخرى');
+      setError(err.message || t.errUsernameNotFound);
     } finally {
       setLoading(false);
     }
@@ -57,18 +68,21 @@ export default function UsernameModal({ isOpen, onComplete, showToast }) {
         textAlign: 'center',
         position: 'relative'
       }}>
+        {/* Quick Language Toggle in Header */}
+        <div style={{ position: 'absolute', top: '16px', right: lang === 'ar' ? 'auto' : '16px', left: lang === 'ar' ? '16px' : 'auto' }}>
+          <LanguageToggle compact={true} showToast={showToast} />
+        </div>
+
         {/* App Logo & Header */}
-        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '14px' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '14px', marginTop: '10px' }}>
           <AppIconBadge size={62} radius={20} showBorder={true} />
         </div>
 
         <h2 style={{ fontSize: '20px', fontWeight: '800', color: '#fff', marginBottom: '6px' }}>
-          {isExisting ? 'تسجيل الدخول إلى حسابك' : 'مرحباً بك في Seif AI'}
+          {isExisting ? t.modalTitleExisting : t.modalTitleNew}
         </h2>
         <p style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '20px', lineHeight: '1.4' }}>
-          {isExisting
-            ? 'أدخل اسم المستخدم الخاص بك للوصول إلى أصدقائك ومحادثاتك'
-            : 'اختر اسم مستخدم خاص بك للتواصل والدردشة مع أصدقائك والذكاء الاصطناعي'}
+          {isExisting ? t.modalSubtitleExisting : t.modalSubtitleNew}
         </p>
 
         {/* Tab Switcher: New vs Existing */}
@@ -96,7 +110,7 @@ export default function UsernameModal({ isOpen, onComplete, showToast }) {
               transition: 'all 0.2s'
             }}
           >
-            حساب جديد ✨
+            {t.tabNewUser}
           </button>
           <button
             type="button"
@@ -114,7 +128,7 @@ export default function UsernameModal({ isOpen, onComplete, showToast }) {
               transition: 'all 0.2s'
             }}
           >
-            لدي حساب مسبقاً 🔑
+            {t.tabExistingUser}
           </button>
         </div>
 
@@ -134,7 +148,7 @@ export default function UsernameModal({ isOpen, onComplete, showToast }) {
             </span>
             <input
               type="text"
-              placeholder="اكتب اسم المستخدم هنا..."
+              placeholder={t.inputUsernamePlaceholder}
               value={username}
               onChange={(e) => { setUsername(e.target.value.toLowerCase().replace(/\s+/g, '')); setError(''); }}
               disabled={loading}
@@ -163,12 +177,13 @@ export default function UsernameModal({ isOpen, onComplete, showToast }) {
               gap: '6px',
               color: '#f87171',
               fontSize: '12px',
-              textAlign: 'right',
-              padding: '6px 10px',
-              background: 'rgba(239, 68, 68, 0.1)',
-              borderRadius: '10px'
+              textAlign: lang === 'ar' ? 'right' : 'left',
+              padding: '8px 12px',
+              background: 'rgba(239, 68, 68, 0.15)',
+              border: '1px solid rgba(239, 68, 68, 0.3)',
+              borderRadius: '12px'
             }}>
-              <AlertCircle size={14} style={{ flexShrink: 0 }} />
+              <AlertCircle size={15} style={{ flexShrink: 0 }} />
               <span>{error}</span>
             </div>
           )}
@@ -196,10 +211,10 @@ export default function UsernameModal({ isOpen, onComplete, showToast }) {
             }}
           >
             {loading ? (
-              <span>جاري التحقق...</span>
+              <span>{t.btnSubmitting}</span>
             ) : (
               <>
-                <span>{isExisting ? 'دخول واسترجاع الحساب' : 'تأكيد اسم المستخدم والبدء'}</span>
+                <span>{isExisting ? t.btnSubmitExisting : t.btnSubmitNew}</span>
                 <ArrowRight size={16} />
               </>
             )}
@@ -207,10 +222,9 @@ export default function UsernameModal({ isOpen, onComplete, showToast }) {
         </form>
 
         <div style={{ marginTop: '16px', fontSize: '11px', color: '#64748b' }}>
-          🔒 سيبقى حسابك مسجلاً دائماً على هذا الهاتف تلقائياً.
+          {t.permanentNotice}
         </div>
       </div>
     </div>
   );
 }
-

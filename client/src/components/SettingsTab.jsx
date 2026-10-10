@@ -1,13 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, LogOut, CheckCircle2, Hourglass, Clock, ShieldAlert, Volume2, UserCheck } from 'lucide-react';
+import { Bell, LogOut, CheckCircle2, Hourglass, Clock, ShieldAlert, Volume2, UserCheck, Globe } from 'lucide-react';
 import { getActiveTheme } from '../themeIcons';
 import { getScreenTimeData, saveScreenTimeData, formatMinutes, formatSeconds } from '../screenTime';
 import { notifications } from '../notifications';
 import { logoSound } from '../logoAudio';
 import { getCurrentUsername } from '../friendsApi';
+import { getAppLanguage, setAppLanguage, getTranslation } from '../i18n';
 import AppIconBadge from './AppIconBadge';
+import LanguageToggle from './LanguageToggle';
 
 export default function SettingsTab({ user, onLogout, showToast }) {
+  const [lang, setLang] = useState(getAppLanguage());
+  const t = getTranslation(lang);
   const [screenTime, setScreenTime] = useState(getScreenTimeData());
 
   useEffect(() => {
@@ -15,11 +19,24 @@ export default function SettingsTab({ user, onLogout, showToast }) {
       if (e.detail) setScreenTime({ ...e.detail });
     };
 
+    const handleLang = (e) => {
+      setLang(e.detail || getAppLanguage());
+    };
+
     window.addEventListener('seif-screentime-updated', handleSt);
+    window.addEventListener('seif-language-changed', handleLang);
     return () => {
       window.removeEventListener('seif-screentime-updated', handleSt);
+      window.removeEventListener('seif-language-changed', handleLang);
     };
   }, []);
+
+  const handleSelectLanguage = (newLang) => {
+    if (newLang === lang) return;
+    setAppLanguage(newLang);
+    setLang(newLang);
+    showToast(newLang === 'ar' ? 'تم ضبط لغة التطبيق: العربية 🇸🇦' : 'App language set to: English 🇺🇸', 'success');
+  };
 
   const updateScreenTimeConfig = (updater) => {
     setScreenTime((prev) => {
@@ -31,18 +48,24 @@ export default function SettingsTab({ user, onLogout, showToast }) {
 
   const handleTestNotification = async () => {
     await notifications.requestPermission();
-    await notifications.sendNow('Seif Ai Test', '🔔 Notification alerts are active on your iPhone!');
-    showToast('Test notification sent to your phone!', 'success');
+    await notifications.sendNow('Seif Ai Test', lang === 'ar' ? '🔔 التنبيهات ونغمة الإشعار مفعلة وتعمل بنجاح على هاتفك!' : '🔔 Notification alerts and crystal chime are active on your iPhone!');
+    showToast(t.testNotificationToast, 'success');
   };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
       {/* Header */}
       <header className="glass-header" style={{
-        padding: 'calc(var(--safe-top) + 12px) 16px 12px'
+        padding: 'calc(var(--safe-top) + 12px) 16px 12px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between'
       }}>
-        <h1 style={{ fontSize: '20px', fontWeight: '700' }}>App Settings</h1>
-        <p style={{ fontSize: '12px', color: '#94a3b8' }}>Customize App Icon, Notifications & Profile</p>
+        <div>
+          <h1 style={{ fontSize: '20px', fontWeight: '700' }}>{t.settingsHeaderTitle}</h1>
+          <p style={{ fontSize: '12px', color: '#94a3b8' }}>{t.settingsHeaderSubtitle}</p>
+        </div>
+        <LanguageToggle compact={true} showToast={showToast} />
       </header>
 
       {/* Content Area */}
@@ -54,7 +77,79 @@ export default function SettingsTab({ user, onLogout, showToast }) {
         flexDirection: 'column',
         gap: '16px'
       }}>
-        {/* User Card */}
+        {/* 🌐 Language Switcher Card (Arabic / English) */}
+        <div className="glass-panel" style={{ padding: '16px', border: '1.5px solid rgba(56, 189, 248, 0.35)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Globe size={18} color="#38bdf8" />
+              <h3 style={{ fontSize: '15px', fontWeight: '700', color: '#fff' }}>{t.languageSettingTitle}</h3>
+            </div>
+            <span style={{
+              fontSize: '11px',
+              padding: '2px 8px',
+              borderRadius: '8px',
+              background: 'rgba(56, 189, 248, 0.15)',
+              color: '#38bdf8',
+              fontWeight: '700'
+            }}>
+              {lang === 'ar' ? 'العربية' : 'English'}
+            </span>
+          </div>
+
+          <p style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '14px', lineHeight: '1.4' }}>
+            {t.languageSettingDesc}
+          </p>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            <button
+              type="button"
+              onClick={() => handleSelectLanguage('ar')}
+              style={{
+                padding: '12px 14px',
+                borderRadius: '16px',
+                border: lang === 'ar' ? '2px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.12)',
+                background: lang === 'ar' ? 'rgba(56, 189, 248, 0.22)' : 'rgba(255, 255, 255, 0.04)',
+                color: lang === 'ar' ? '#38bdf8' : '#cbd5e1',
+                fontSize: '13px',
+                fontWeight: '700',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
+            >
+              <span>🇸🇦 العربية (Arabic)</span>
+              {lang === 'ar' && <CheckCircle2 size={16} color="#38bdf8" />}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleSelectLanguage('en')}
+              style={{
+                padding: '12px 14px',
+                borderRadius: '16px',
+                border: lang === 'en' ? '2px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.12)',
+                background: lang === 'en' ? 'rgba(56, 189, 248, 0.22)' : 'rgba(255, 255, 255, 0.04)',
+                color: lang === 'en' ? '#38bdf8' : '#cbd5e1',
+                fontSize: '13px',
+                fontWeight: '700',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
+            >
+              <span>🇺🇸 English (الإنجليزية)</span>
+              {lang === 'en' && <CheckCircle2 size={16} color="#38bdf8" />}
+            </button>
+          </div>
+        </div>
+
+        {/* User Profile Card */}
         <div className="glass-panel" style={{ padding: '16px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -64,7 +159,7 @@ export default function SettingsTab({ user, onLogout, showToast }) {
                   @{getCurrentUsername() || 'User'}
                 </div>
                 <div style={{ fontSize: '12px', color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <UserCheck size={13} /> حساب متصل دائم • لا يحتاج كلمة سر
+                  <UserCheck size={13} /> {t.permanentAccountDesc}
                 </div>
               </div>
             </div>
@@ -77,7 +172,7 @@ export default function SettingsTab({ user, onLogout, showToast }) {
               fontSize: '11px',
               fontWeight: '700'
             }}>
-              Active
+              {t.active}
             </span>
           </div>
         </div>
@@ -89,24 +184,24 @@ export default function SettingsTab({ user, onLogout, showToast }) {
               <AppIconBadge size={56} radius={18} showBorder={true} />
               <div>
                 <div style={{ fontSize: '15px', fontWeight: '700', color: '#fff', marginBottom: '2px' }}>
-                  Seif Ai Test
+                  {t.appName}
                 </div>
                 <div style={{ fontSize: '12px', color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <CheckCircle2 size={13} /> اضغط الشعار لسماع الصوت
+                  <CheckCircle2 size={13} /> {t.logoCardDesc}
                 </div>
               </div>
             </div>
             <button
               onClick={() => {
                 logoSound.playLogoSound();
-                showToast('✨ تم تشغيل نغمة الشعار!', 'success');
+                showToast(t.logoSoundToast, 'success');
               }}
               className="ios-button-secondary"
               style={{ padding: '8px 12px', fontSize: '12px', gap: '6px' }}
-              title="تشغيل نغمة الشعار"
+              title={t.logoCardDesc}
             >
               <Volume2 size={15} color="#38bdf8" />
-              <span>صوت الشعار 🎵</span>
+              <span>{lang === 'ar' ? 'صوت الشعار 🎵' : 'Logo Chime 🎵'}</span>
             </button>
           </div>
         </div>
@@ -116,7 +211,7 @@ export default function SettingsTab({ user, onLogout, showToast }) {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Hourglass size={18} color="#f59e0b" />
-              <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#fff' }}>Screen Time (وقت الشاشة)</h3>
+              <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#fff' }}>{t.screenTimeTitle}</h3>
             </div>
             <span style={{
               fontSize: '11px',
@@ -131,7 +226,7 @@ export default function SettingsTab({ user, onLogout, showToast }) {
           </div>
 
           <p style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '14px', lineHeight: '1.4' }}>
-            تحكم في مدة استخدامك اليومية للتطبيق واحصل على تنبيهات استراحة لحماية عينيك وتنظيم وقتك.
+            {t.screenTimeDesc}
           </p>
 
           {/* Today's Usage Stats Bar */}
@@ -147,7 +242,7 @@ export default function SettingsTab({ user, onLogout, showToast }) {
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Clock size={16} color="#38bdf8" />
-              <span style={{ fontSize: '12px', color: '#cbd5e1' }}>اليوم (Today's Usage):</span>
+              <span style={{ fontSize: '12px', color: '#cbd5e1' }}>{t.todayUsageLabel}</span>
             </div>
             <span style={{ fontSize: '13px', fontWeight: '700', color: '#38bdf8' }}>
               {formatSeconds(screenTime.todayUsageSeconds)}
@@ -164,15 +259,15 @@ export default function SettingsTab({ user, onLogout, showToast }) {
           }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: screenTime.limitEnabled ? '10px' : '0' }}>
               <div>
-                <div style={{ fontSize: '13px', fontWeight: '600', color: '#fff' }}>الحد اليومي (Daily Limit)</div>
-                <div style={{ fontSize: '11px', color: '#64748b' }}>إيقاف التطبيق عند الوصول للحد المحدد</div>
+                <div style={{ fontSize: '13px', fontWeight: '600', color: '#fff' }}>{t.dailyLimitLabel}</div>
+                <div style={{ fontSize: '11px', color: '#64748b' }}>{t.dailyLimitDesc}</div>
               </div>
               <input
                 type="checkbox"
                 checked={screenTime.limitEnabled}
                 onChange={(e) => {
                   updateScreenTimeConfig({ limitEnabled: e.target.checked });
-                  showToast(e.target.checked ? 'Daily screen time limit turned ON' : 'Daily limit turned OFF', 'info');
+                  showToast(e.target.checked ? 'Daily limit enabled' : 'Daily limit disabled', 'info');
                 }}
                 style={{ width: '20px', height: '20px', accentColor: '#f59e0b', cursor: 'pointer' }}
               />
@@ -217,8 +312,8 @@ export default function SettingsTab({ user, onLogout, showToast }) {
           }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div>
-                <div style={{ fontSize: '13px', fontWeight: '600', color: '#fff' }}>تنبيهات الاستراحة (Break Reminders)</div>
-                <div style={{ fontSize: '11px', color: '#64748b' }}>إشعار كل 20 دقيقة استخدام متواصل لأخذ راحة</div>
+                <div style={{ fontSize: '13px', fontWeight: '600', color: '#fff' }}>{t.breakRemindersLabel}</div>
+                <div style={{ fontSize: '11px', color: '#64748b' }}>{t.breakRemindersDesc}</div>
               </div>
               <input
                 type="checkbox"
@@ -238,7 +333,7 @@ export default function SettingsTab({ user, onLogout, showToast }) {
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Bell size={18} color="#38bdf8" />
-              <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#fff' }}>صوت ونغمة الإشعارات (Notification Sound)</h3>
+              <h3 style={{ fontSize: '15px', fontWeight: '600', color: '#fff' }}>{t.notificationSoundTitle}</h3>
             </div>
             <span style={{
               fontSize: '11px',
@@ -252,7 +347,7 @@ export default function SettingsTab({ user, onLogout, showToast }) {
             </span>
           </div>
           <p style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '12px', lineHeight: '1.4' }}>
-            نغمة إشعار كريستالية فخمة تعمل تلقائياً مع كل تذكير أو إشعار يصدره التطبيق.
+            {t.notificationSoundDesc}
           </p>
 
           <button
@@ -261,7 +356,7 @@ export default function SettingsTab({ user, onLogout, showToast }) {
             style={{ width: '100%', fontSize: '13px', padding: '11px', gap: '8px' }}
           >
             <Bell size={16} />
-            <span>تجربة صوت الإشعار الآن (Test Notification Sound) 🔔</span>
+            <span>{t.testNotificationBtn}</span>
           </button>
         </div>
       </div>

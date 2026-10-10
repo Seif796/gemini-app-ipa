@@ -49,10 +49,10 @@ export default class ErrorBoundary extends React.Component {
           </div>
 
           <h2 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '8px' }}>
-            حدث خطأ غير متوقع
+            حدث خطأ غير متوقع / Unexpected Error
           </h2>
           <p style={{ fontSize: '12px', color: '#94a3b8', maxWidth: '300px', marginBottom: '20px', lineHeight: '1.5' }}>
-            {this.state.error?.message || 'تم تفادي توقف التطبيق بنجاح.'}
+            {this.state.error?.message || 'تم تفادي توقف التطبيق بنجاح / The application was safely recovered.'}
           </p>
 
           <button
@@ -72,7 +72,7 @@ export default class ErrorBoundary extends React.Component {
             }}
           >
             <RotateCcw size={15} />
-            <span>إعادة تحميل التطبيق</span>
+            <span>إعادة تحميل التطبيق • Reload App</span>
           </button>
         </div>
       );
@@ -81,3 +81,4 @@ export default class ErrorBoundary extends React.Component {
     return this.props.children;
   }
 }
+

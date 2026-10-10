@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, CheckSquare, Square, Sparkles, Trash2, Calendar, Clock, ChevronDown, ChevronUp, AlertCircle } from 'lucide-react';
 import { api } from '../api';
+import LanguageToggle from './LanguageToggle';
 
 export default function TasksTab({ showToast }) {
   const [tasks, setTasks] = useState([]);
@@ -135,14 +136,17 @@ export default function TasksTab({ showToast }) {
             {completedCount}/{tasks.length} Completed ({progressPercent}%)
           </p>
         </div>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="ios-button-primary"
-          style={{ padding: '8px 14px', borderRadius: '12px', fontSize: '13px' }}
-        >
-          <Plus size={16} />
-          <span>New Task</span>
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <LanguageToggle compact={true} showToast={showToast} />
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="ios-button-primary"
+            style={{ padding: '8px 14px', borderRadius: '12px', fontSize: '13px' }}
+          >
+            <Plus size={16} />
+            <span>New Task</span>
+          </button>
+        </div>
       </header>
 
       {/* Progress Bar & Filter Tabs */}

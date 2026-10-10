@@ -8,8 +8,13 @@ import { notifications } from '../notifications';
 import { getActiveTheme } from '../themeIcons';
 import { openApp, closeCurrentApp, findAppByName } from '../appLauncher';
 import AppIconBadge from './AppIconBadge';
+import LanguageToggle from './LanguageToggle';
+import { getAppLanguage, getTranslation } from '../i18n';
 
 export default function ChatTab({ showToast }) {
+  const [lang, setLang] = useState(getAppLanguage());
+  const t = getTranslation(lang);
+
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -22,6 +27,12 @@ export default function ChatTab({ showToast }) {
   const fileInputRef = useRef(null);
   const recognitionRef = useRef(null);
   const chatEndRef = useRef(null);
+
+  useEffect(() => {
+    const handleLang = (e) => setLang(e.detail || getAppLanguage());
+    window.addEventListener('seif-language-changed', handleLang);
+    return () => window.removeEventListener('seif-language-changed', handleLang);
+  }, []);
 
   useEffect(() => {
     loadChatHistory();
@@ -403,12 +414,14 @@ export default function ChatTab({ showToast }) {
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
               <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981' }}></span>
-              <span style={{ fontSize: '11px', color: '#94a3b8' }}>Gemini Online 24/7 • Reminders Ready</span>
+              <span style={{ fontSize: '11px', color: '#94a3b8' }}>{t.onlineStatus}</span>
             </div>
           </div>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <LanguageToggle compact={true} showToast={showToast} />
+
           <button
             onClick={() => notifications.requestPermission().then(() => showToast('Notifications enabled! 🔔', 'success'))}
             title="Enable Notifications"
@@ -426,7 +439,7 @@ export default function ChatTab({ showToast }) {
 
           <button
             onClick={handleClearHistory}
-            title="Clear Chat"
+            title={t.clear}
             style={{
               background: 'rgba(255, 255, 255, 0.06)',
               border: 'none',
@@ -734,7 +747,7 @@ export default function ChatTab({ showToast }) {
           {/* Text Input */}
           <input
             type="text"
-            placeholder={isListening ? 'سامعك... اتكلم' : 'اسأل، حل مسألة، أو قولي "فكرني بعد 5 دقايق"...'}
+            placeholder={isListening ? t.voiceListeningToast : t.chatInputPlaceholder}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             disabled={loading}

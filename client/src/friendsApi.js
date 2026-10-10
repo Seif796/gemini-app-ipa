@@ -1,5 +1,6 @@
 import { directGeminiCall } from './api';
 import { playNotificationSound } from './notifications';
+import { getTranslation } from './i18n';
 
 const MASTER_REGISTRY_ID = 'ff808181a09d98f701a122e81b8f31c6';
 const CLOUD_URL = `https://api.restful-api.dev/objects/${MASTER_REGISTRY_ID}`;
@@ -117,34 +118,36 @@ export async function saveMasterRegistry(data) {
 
 // 1. User Registration / Permanent Sign-In
 export async function registerOrLoginUsername(rawUsername, isExistingLogin = false) {
-  const username = rawUsername.toLowerCase().trim();
+  const t = getTranslation();
+  const username = (rawUsername || '').toLowerCase().replace(/^@+/, '').trim();
   if (!username) {
-    throw new Error('يرجى إدخال اسم المستخدم');
+    throw new Error(t.errEmptyUsername || 'يرجى إدخال اسم المستخدم');
   }
   if (username.length < 2) {
-    throw new Error('اسم المستخدم يجب أن يكون حرفين على الأقل');
+    throw new Error(t.errUsernameTooShort || 'اسم المستخدم يجب أن يكون حرفين على الأقل');
   }
   if (!/^[a-zA-Z0-9_\u0600-\u06FF]+$/.test(username)) {
-    throw new Error('اسم المستخدم يجب ألا يحتوي على مسافات أو رموز خاصة');
+    throw new Error(t.errInvalidUsernameChars || 'اسم المستخدم يجب ألا يحتوي على مسافات أو رموز خاصة');
   }
 
   const registry = await getMasterRegistry(true);
 
   if (isExistingLogin) {
     // Logging into an existing account
-    if (!registry.users[username]) {
-      throw new Error(`اسم المستخدم @${username} غير مسجل مسبقاً!`);
+    if (!registry.users || !registry.users[username]) {
+      throw new Error(t.errUsernameNotRegistered || `اسم المستخدم @${username} غير مسجل مسبقاً!`);
     }
     setCurrentUsername(username);
     return registry.users[username];
   }
 
   // New user registration
-  if (registry.users[username]) {
-    throw new Error('اسم المستخدم هذا موجود بالفعل! اختر اسماً آخر.');
+  if (registry.users && registry.users[username]) {
+    throw new Error(t.errUsernameTaken || 'اسم المستخدم هذا موجود بالفعل! اختر اسماً آخر.');
   }
 
   // Create user
+  registry.users = registry.users || {};
   registry.users[username] = {
     username,
     createdAt: new Date().toISOString()
@@ -157,26 +160,28 @@ export async function registerOrLoginUsername(rawUsername, isExistingLogin = fal
 
 // 2. Send Friend Request
 export async function sendFriendRequest(targetUsername) {
+  const t = getTranslation();
   const myUsername = getCurrentUsername();
-  if (!myUsername) throw new Error('يرجى تسجيل الدخول أولاً');
+  if (!myUsername) throw new Error(t.errEmptyUsername || 'يرجى تسجيل الدخول أولاً');
 
-  const cleanTarget = targetUsername.toLowerCase().trim();
-  if (!cleanTarget) throw new Error('يرجى إدخال اسم الصديق');
+  const cleanTarget = (targetUsername || '').toLowerCase().replace(/^@+/, '').trim();
+  if (!cleanTarget) throw new Error(t.errEmptyUsername || 'يرجى إدخال اسم الصديق');
 
   if (cleanTarget === myUsername) {
-    throw new Error('لا يمكنك إرسال طلب صداقة لنفسك!');
+    throw new Error(t.errCannotAddSelf || 'لا يمكنك إرسال طلب صداقة لنفسك!');
   }
 
   const registry = await getMasterRegistry(true);
 
-  if (!registry.users[cleanTarget]) {
-    throw new Error(`المستخدم @${cleanTarget} غير موجود! تأكد من الاسم.`);
+  // Validate that user exists in registry
+  if (!registry.users || !registry.users[cleanTarget]) {
+    throw new Error(t.errUsernameNotFound || `الاسم غير موجود! تأكد من كتابة اسم المستخدم @${cleanTarget} بشكل صحيح.`);
   }
 
   // Check if already friends
-  const myFriends = registry.friendships[myUsername] || [];
+  const myFriends = (registry.friendships && registry.friendships[myUsername]) || [];
   if (myFriends.includes(cleanTarget)) {
-    throw new Error(`أنت و @${cleanTarget} أصدقاء بالفعل!`);
+    throw new Error(t.errAlreadyFriends || `أنت و @${cleanTarget} أصدقاء بالفعل!`);
   }
 
   // Check if pending request exists
@@ -186,9 +191,9 @@ export async function sendFriendRequest(targetUsername) {
 
   if (existingReq) {
     if (existingReq.from === myUsername) {
-      throw new Error('تم إرسال طلب صداقة لهذا المستخدم مسبقاً وبانتظار قبوله!');
+      throw new Error(t.errRequestAlreadyPending || 'تم إرسال طلب صداقة لهذا المستخدم مسبقاً وبانتظار قبوله!');
     } else {
-      throw new Error(`المستخدم @${cleanTarget} قد أرسل لك طلب صداقة بالفعل! تحقق من طلبات الصداقة لقبوله.`);
+      throw new Error(t.errTargetAlreadyRequested || `المستخدم @${cleanTarget} قد أرسل لك طلب صداقة بالفعل! تحقق من طلبات الصداقة لقبوله.`);
     }
   }
 

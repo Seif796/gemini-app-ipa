@@ -9,7 +9,9 @@ import {
   sendFriendMessage, toggleBotInChat 
 } from '../friendsApi';
 import { playNotificationSound } from '../notifications';
+import { getAppLanguage, getTranslation } from '../i18n';
 import AppIconBadge from './AppIconBadge';
+import LanguageToggle from './LanguageToggle';
 
 function getUserInitials(name) {
   if (!name) return '?';
@@ -18,6 +20,9 @@ function getUserInitials(name) {
 }
 
 export default function FriendsTab({ showToast, onOpenUsernameModal }) {
+  const [lang, setLang] = useState(getAppLanguage());
+  const t = getTranslation(lang);
+
   const [myUsername, setMyUsername] = useState(getCurrentUsername());
   const [friendsData, setFriendsData] = useState({ friends: [], incomingRequests: [], outgoingRequests: [] });
   const [loading, setLoading] = useState(false);
@@ -33,6 +38,12 @@ export default function FriendsTab({ showToast, onOpenUsernameModal }) {
 
   const chatEndRef = useRef(null);
   const pollTimerRef = useRef(null);
+
+  useEffect(() => {
+    const handleLang = (e) => setLang(e.detail || getAppLanguage());
+    window.addEventListener('seif-language-changed', handleLang);
+    return () => window.removeEventListener('seif-language-changed', handleLang);
+  }, []);
 
   useEffect(() => {
     const current = getCurrentUsername();
@@ -69,7 +80,7 @@ export default function FriendsTab({ showToast, onOpenUsernameModal }) {
             const newReqs = (data && Array.isArray(data.incomingRequests)) ? data.incomingRequests : [];
             if (newReqs.length > prevReqs.length) {
               playNotificationSound();
-              showToast('🔔 وصلك طلب صداقة جديد!', 'info');
+              showToast(lang === 'ar' ? '🔔 وصلك طلب صداقة جديد!' : '🔔 New friend request received!', 'info');
             }
             return {
               friends: (data && Array.isArray(data.friends)) ? data.friends : [],
@@ -84,7 +95,7 @@ export default function FriendsTab({ showToast, onOpenUsernameModal }) {
     poll();
     pollTimerRef.current = setInterval(poll, 3000);
     return () => clearInterval(pollTimerRef.current);
-  }, [myUsername, activeFriend]);
+  }, [myUsername, activeFriend, lang]);
 
   useEffect(() => {
     if (activeFriend) {
@@ -106,17 +117,17 @@ export default function FriendsTab({ showToast, onOpenUsernameModal }) {
 
   const handleSendRequest = async (e) => {
     e.preventDefault();
-    const clean = targetUsername.trim();
+    const clean = targetUsername.toLowerCase().replace(/^@+/, '').trim();
     if (!clean) return;
 
     setActionLoading(true);
     try {
       await sendFriendRequest(clean);
-      showToast(`تم إرسال طلب الصداقة إلى @${clean} بنجاح! 📨`, 'success');
+      showToast(`${t.friendRequestSentSuccess} (@${clean})`, 'success');
       setTargetUsername('');
       loadFriends();
     } catch (err) {
-      showToast(err.message || 'تعذر إرسال طلب الصداقة', 'error');
+      showToast(err.message || t.errUsernameNotFound, 'error');
     } finally {
       setActionLoading(false);
     }
@@ -125,20 +136,20 @@ export default function FriendsTab({ showToast, onOpenUsernameModal }) {
   const handleAccept = async (requestId, fromUser) => {
     try {
       await acceptFriendRequest(requestId);
-      showToast(`أصبحت أنت و @${fromUser} أصدقاء الآن! 🎉`, 'success');
+      showToast(`${t.friendAcceptedSuccess} (@${fromUser})`, 'success');
       loadFriends();
     } catch (err) {
-      showToast(err.message || 'تعذر قبول الطلب', 'error');
+      showToast(err.message || t.errUsernameNotFound, 'error');
     }
   };
 
   const handleReject = async (requestId) => {
     try {
       await rejectFriendRequest(requestId);
-      showToast('تم رفض طلب الصداقة', 'info');
+      showToast(t.friendRejectedInfo, 'info');
       loadFriends();
     } catch (err) {
-      showToast('حدث خطأ', 'error');
+      showToast('Error', 'error');
     }
   };
 
@@ -147,8 +158,8 @@ export default function FriendsTab({ showToast, onOpenUsernameModal }) {
     setChatMessages([]);
     try {
       const res = await getChatMessages(friend);
-      setChatMessages(res.messages);
-      setIsBotEnabled(res.isBotEnabled);
+      setChatMessages(res.messages || []);
+      setIsBotEnabled(Boolean(res?.isBotEnabled));
     } catch (_) {}
   };
 
@@ -162,9 +173,9 @@ export default function FriendsTab({ showToast, onOpenUsernameModal }) {
     try {
       await sendFriendMessage(activeFriend, text);
       const res = await getChatMessages(activeFriend);
-      setChatMessages(res.messages);
+      setChatMessages(res.messages || []);
     } catch (err) {
-      showToast('تعذر إرسال الرسالة', 'error');
+      showToast('Could not send message', 'error');
     } finally {
       setSendingMsg(false);
     }
@@ -175,15 +186,15 @@ export default function FriendsTab({ showToast, onOpenUsernameModal }) {
     try {
       const enabled = await toggleBotInChat(activeFriend);
       setIsBotEnabled(enabled);
-      showToast(enabled ? '🤖 تم تفعيل البوت الذكي في الشات!' : 'تم إيقاف البوت من الشات', 'info');
+      showToast(enabled ? t.botConnectedBadge : (lang === 'ar' ? 'تم إيقاف البوت من الشات' : 'Bot removed from chat'), 'info');
       const res = await getChatMessages(activeFriend);
-      setChatMessages(res.messages);
+      setChatMessages(res.messages || []);
     } catch (_) {}
   };
 
   const copyMyUsername = () => {
     navigator.clipboard?.writeText(myUsername);
-    showToast(`تم نسخ اسم المستخدم: @${myUsername} 📋`, 'success');
+    showToast(`${t.copied} (@${myUsername})`, 'success');
   };
 
   // ---------------- RENDER: CHAT ROOM WITH FRIEND ----------------
@@ -226,33 +237,36 @@ export default function FriendsTab({ showToast, onOpenUsernameModal }) {
               </div>
               <div style={{ fontSize: '11px', color: '#34d399', display: 'flex', alignItems: 'center', gap: '4px' }}>
                 <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#34d399' }} />
-                محادثة صديق
+                {t.friendChatBadge}
               </div>
             </div>
           </div>
 
-          {/* Bot Toggle in Chat Button */}
-          <button
-            onClick={handleToggleBot}
-            style={{
-              padding: '6px 12px',
-              borderRadius: '20px',
-              border: isBotEnabled ? '1px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.15)',
-              background: isBotEnabled ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255, 255, 255, 0.05)',
-              color: isBotEnabled ? '#38bdf8' : '#94a3b8',
-              fontSize: '12px',
-              fontWeight: '700',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              cursor: 'pointer',
-              transition: 'all 0.2s'
-            }}
-            title={isBotEnabled ? 'البوت متصل بالمحادثة' : 'إضافة البوت للدردشة معكم'}
-          >
-            <Bot size={15} color={isBotEnabled ? '#38bdf8' : '#94a3b8'} />
-            <span>{isBotEnabled ? 'البوت متصل 🤖' : 'إضافة البوت ➕'}</span>
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <LanguageToggle compact={true} showToast={showToast} />
+            {/* Bot Toggle in Chat Button */}
+            <button
+              onClick={handleToggleBot}
+              style={{
+                padding: '6px 12px',
+                borderRadius: '20px',
+                border: isBotEnabled ? '1px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.15)',
+                background: isBotEnabled ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+                color: isBotEnabled ? '#38bdf8' : '#94a3b8',
+                fontSize: '12px',
+                fontWeight: '700',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                cursor: 'pointer',
+                transition: 'all 0.2s'
+              }}
+              title={isBotEnabled ? t.botConnectedBadge : t.addBotBtn}
+            >
+              <Bot size={15} color={isBotEnabled ? '#38bdf8' : '#94a3b8'} />
+              <span>{isBotEnabled ? t.botConnectedBadge : t.addBotBtn}</span>
+            </button>
+          </div>
         </header>
 
         {/* Bot active banner */}
@@ -268,7 +282,7 @@ export default function FriendsTab({ showToast, onOpenUsernameModal }) {
             gap: '6px'
           }}>
             <Sparkles size={13} />
-            <span>الذكاء الاصطناعي (Seif Bot) يشارك في هذا الشات! اسأله أي شيء وسيرد عليكم معاً.</span>
+            <span>{t.botBannerText}</span>
           </div>
         )}
 
@@ -283,7 +297,7 @@ export default function FriendsTab({ showToast, onOpenUsernameModal }) {
         }}>
           {chatMessages.length === 0 ? (
             <div style={{ textAlign: 'center', color: '#64748b', marginTop: '40px', fontSize: '13px' }}>
-              👋 ابدأ المحادثة الآن مع صديقك @{activeFriend}!
+              {t.startChatPrompt} @{activeFriend}!
             </div>
           ) : (
             chatMessages.map((m) => {
@@ -393,7 +407,7 @@ export default function FriendsTab({ showToast, onOpenUsernameModal }) {
           >
             <input
               type="text"
-              placeholder={isBotEnabled ? "اكتب رسالة أو اسأل البوت..." : "اكتب رسالة لصديقك..."}
+              placeholder={isBotEnabled ? t.typeMessageWithBotPlaceholder : t.typeMessagePlaceholder}
               value={msgInput}
               onChange={(e) => setMsgInput(e.target.value)}
               disabled={sendingMsg}
@@ -441,17 +455,20 @@ export default function FriendsTab({ showToast, onOpenUsernameModal }) {
         justifyContent: 'space-between'
       }}>
         <div>
-          <h1 style={{ fontSize: '20px', fontWeight: '700' }}>Friends (الأصدقاء)</h1>
-          <p style={{ fontSize: '12px', color: '#94a3b8' }}>أضف أصدقاءك بالـ Username ودردش معهم ومع البوت</p>
+          <h1 style={{ fontSize: '20px', fontWeight: '700' }}>{t.friendsHeaderTitle}</h1>
+          <p style={{ fontSize: '12px', color: '#94a3b8' }}>{t.friendsHeaderSubtitle}</p>
         </div>
-        <button
-          onClick={loadFriends}
-          className="ios-button-secondary"
-          style={{ width: '36px', height: '36px', borderRadius: '50%', padding: 0 }}
-          title="تحديث"
-        >
-          <RefreshCw size={16} />
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <LanguageToggle compact={true} showToast={showToast} />
+          <button
+            onClick={loadFriends}
+            className="ios-button-secondary"
+            style={{ width: '36px', height: '36px', borderRadius: '50%', padding: 0 }}
+            title={lang === 'ar' ? 'تحديث' : 'Refresh'}
+          >
+            <RefreshCw size={16} />
+          </button>
+        </div>
       </header>
 
       {/* Content */}
@@ -482,9 +499,9 @@ export default function FriendsTab({ showToast, onOpenUsernameModal }) {
                 {getUserInitials(myUsername)}
               </div>
               <div>
-                <div style={{ fontSize: '11px', color: '#94a3b8' }}>اسم المستخدم الخاص بك:</div>
+                <div style={{ fontSize: '11px', color: '#94a3b8' }}>{t.myUsernameLabel}</div>
                 <div style={{ fontSize: '17px', fontWeight: '800', color: '#38bdf8' }}>
-                  @{myUsername || 'لم يتم التسجيل'}
+                  @{myUsername || t.notRegistered}
                 </div>
               </div>
             </div>
@@ -493,10 +510,10 @@ export default function FriendsTab({ showToast, onOpenUsernameModal }) {
               onClick={copyMyUsername}
               className="ios-button-secondary"
               style={{ padding: '8px 12px', fontSize: '12px', gap: '6px' }}
-              title="نسخ اسم المستخدم"
+              title={t.copy}
             >
               <Copy size={14} />
-              <span>نسخ</span>
+              <span>{t.copy}</span>
             </button>
           </div>
         </div>
@@ -505,10 +522,10 @@ export default function FriendsTab({ showToast, onOpenUsernameModal }) {
         <div className="glass-panel" style={{ padding: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
             <UserPlus size={18} color="#38bdf8" />
-            <h3 style={{ fontSize: '15px', fontWeight: '700', color: '#fff' }}>إضافة صديق جديد (Add Friend)</h3>
+            <h3 style={{ fontSize: '15px', fontWeight: '700', color: '#fff' }}>{t.addFriendTitle}</h3>
           </div>
           <p style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '12px' }}>
-            أدخل اسم مستخدم صديقك لإرسال طلب صداقة له:
+            {t.addFriendSubtitle}
           </p>
 
           <form onSubmit={handleSendRequest} style={{ display: 'flex', gap: '8px' }}>
@@ -526,7 +543,7 @@ export default function FriendsTab({ showToast, onOpenUsernameModal }) {
               </span>
               <input
                 type="text"
-                placeholder="username الصديق..."
+                placeholder={t.friendUsernamePlaceholder}
                 value={targetUsername}
                 onChange={(e) => setTargetUsername(e.target.value.toLowerCase().replace(/\s+/g, ''))}
                 dir="ltr"
@@ -551,7 +568,7 @@ export default function FriendsTab({ showToast, onOpenUsernameModal }) {
               style={{ padding: '10px 16px', fontSize: '13px', whiteSpace: 'nowrap', gap: '6px' }}
             >
               <UserPlus size={15} />
-              <span>إرسال طلب</span>
+              <span>{actionLoading ? t.sendingRequestBtn : t.sendFriendRequestBtn}</span>
             </button>
           </form>
         </div>
@@ -567,7 +584,7 @@ export default function FriendsTab({ showToast, onOpenUsernameModal }) {
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Clock size={16} color="#fbbf24" />
-                <h3 style={{ fontSize: '14px', fontWeight: '700', color: '#fff' }}>طلبات الصداقة الواردة</h3>
+                <h3 style={{ fontSize: '14px', fontWeight: '700', color: '#fff' }}>{t.incomingRequestsTitle}</h3>
               </div>
               <span style={{
                 background: '#ef4444',
@@ -577,7 +594,7 @@ export default function FriendsTab({ showToast, onOpenUsernameModal }) {
                 padding: '2px 8px',
                 borderRadius: '12px'
               }}>
-                {Array.isArray(friendsData?.incomingRequests) ? friendsData.incomingRequests.length : 0} جديد
+                {Array.isArray(friendsData?.incomingRequests) ? friendsData.incomingRequests.length : 0} {t.newRequestsBadge}
               </span>
             </div>
 
@@ -608,13 +625,13 @@ export default function FriendsTab({ showToast, onOpenUsernameModal }) {
                     </div>
                     <div>
                       <div style={{ fontSize: '14px', fontWeight: '700', color: '#fff' }}>@{req?.from}</div>
-                      <div style={{ fontSize: '11px', color: '#94a3b8' }}>أرسل لك طلب صداقة</div>
+                      <div style={{ fontSize: '11px', color: '#94a3b8' }}>{t.sentYouRequestText}</div>
                     </div>
                   </div>
 
                   <div style={{ display: 'flex', gap: '8px' }}>
                     <button
-                      onClick={() => handleAccept(req.id, req.from)}
+                      onClick={() => handleAccept(req?.id, req?.from)}
                       style={{
                         padding: '6px 12px',
                         borderRadius: '12px',
@@ -630,10 +647,10 @@ export default function FriendsTab({ showToast, onOpenUsernameModal }) {
                       }}
                     >
                       <Check size={14} />
-                      <span>قبول</span>
+                      <span>{t.acceptBtn}</span>
                     </button>
                     <button
-                      onClick={() => handleReject(req.id)}
+                      onClick={() => handleReject(req?.id)}
                       style={{
                         padding: '6px 10px',
                         borderRadius: '12px',
@@ -644,6 +661,7 @@ export default function FriendsTab({ showToast, onOpenUsernameModal }) {
                         fontWeight: '700',
                         cursor: 'pointer'
                       }}
+                      title={t.rejectBtn}
                     >
                       <X size={14} />
                     </button>
@@ -660,14 +678,14 @@ export default function FriendsTab({ showToast, onOpenUsernameModal }) {
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Users size={18} color="#38bdf8" />
               <h3 style={{ fontSize: '15px', fontWeight: '700', color: '#fff' }}>
-                أصدقائي ({Array.isArray(friendsData?.friends) ? friendsData.friends.length : 0})
+                {t.myFriendsTitle} ({Array.isArray(friendsData?.friends) ? friendsData.friends.length : 0})
               </h3>
             </div>
           </div>
 
           {(!Array.isArray(friendsData?.friends) || friendsData.friends.length === 0) ? (
             <div style={{ textAlign: 'center', padding: '24px 10px', color: '#64748b', fontSize: '13px' }}>
-              ليس لديك أصدقاء بعد. اكتب اسم مستخدم صديقك بالأعلى وأرسل له طلب صداقة! 🤝
+              {t.noFriendsYet}
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -700,7 +718,7 @@ export default function FriendsTab({ showToast, onOpenUsernameModal }) {
                       </div>
                       <div>
                         <div style={{ fontSize: '14px', fontWeight: '700', color: '#fff' }}>@{friendName}</div>
-                        <div style={{ fontSize: '11px', color: '#34d399' }}>صديق متصل ⚡</div>
+                        <div style={{ fontSize: '11px', color: '#34d399' }}>{t.connectedFriend}</div>
                       </div>
                     </div>
 
@@ -710,7 +728,7 @@ export default function FriendsTab({ showToast, onOpenUsernameModal }) {
                       style={{ padding: '8px 14px', fontSize: '12px', gap: '6px' }}
                     >
                       <MessageCircle size={14} />
-                      <span>دردشة 💬</span>
+                      <span>{t.chatWithFriendBtn}</span>
                     </button>
                   </div>
                 );
@@ -722,4 +740,3 @@ export default function FriendsTab({ showToast, onOpenUsernameModal }) {
     </div>
   );
 }
-

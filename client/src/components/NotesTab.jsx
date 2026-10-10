@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Search, Sparkles, Trash2, Edit3, Check, ArrowRight, Zap, ListChecks } from 'lucide-react';
 import { api } from '../api';
+import LanguageToggle from './LanguageToggle';
 
 export default function NotesTab({ showToast, onTaskAdded }) {
   const [notes, setNotes] = useState([]);
@@ -117,14 +118,17 @@ export default function NotesTab({ showToast, onTaskAdded }) {
           <h1 style={{ fontSize: '20px', fontWeight: '700' }}>Smart Notes</h1>
           <p style={{ fontSize: '12px', color: '#94a3b8' }}>{notes.length} notes with AI Intelligence</p>
         </div>
-        <button
-          onClick={handleCreateNew}
-          className="ios-button-primary"
-          style={{ padding: '8px 14px', borderRadius: '12px', fontSize: '13px' }}
-        >
-          <Plus size={16} />
-          <span>New Note</span>
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <LanguageToggle compact={true} showToast={showToast} />
+          <button
+            onClick={handleCreateNew}
+            className="ios-button-primary"
+            style={{ padding: '8px 14px', borderRadius: '12px', fontSize: '13px' }}
+          >
+            <Plus size={16} />
+            <span>New Note</span>
+          </button>
+        </div>
       </header>
 
       {/* Search Input */}
