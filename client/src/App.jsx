@@ -372,6 +372,8 @@ export default function App() {
       {/* Pure Username Sign-In / Account Modal */}
       <UsernameModal
         isOpen={isUsernameModalOpen}
+        onClose={() => setIsUsernameModalOpen(false)}
+        hasExistingAccount={!!myUsername}
         onComplete={(username) => {
           setIsUsernameModalOpen(false);
           setMyUsername(username);

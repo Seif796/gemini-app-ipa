@@ -566,3 +566,4 @@ export default function FriendChatRoom({ friend, onBack, onStartCall, showToast 
     </div>
   );
 }
+

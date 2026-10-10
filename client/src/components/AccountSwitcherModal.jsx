@@ -196,3 +196,4 @@ export default function AccountSwitcherModal({ isOpen, onClose, onAddNew, showTo
     </div>
   );
 }
+

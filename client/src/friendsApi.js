@@ -25,8 +25,10 @@ export function setCurrentUsername(username) {
       const clean = username.toLowerCase().trim();
       localStorage.setItem(KEY_USERNAME, clean);
       saveAccount(clean);
+      window.dispatchEvent(new CustomEvent('seif-account-switched', { detail: { username: clean } }));
     } else {
       localStorage.removeItem(KEY_USERNAME);
+      window.dispatchEvent(new CustomEvent('seif-account-switched', { detail: { username: '' } }));
     }
   } catch (_) {}
 }
@@ -168,15 +170,15 @@ async function pollCloudInbox(username) {
 
 export async function registerOrLoginUsername(rawUsername, isExistingLogin = false) {
   const t = getTranslation();
-  const username = (rawUsername || '').toLowerCase().replace(/^@+/, '').trim();
+  let username = (rawUsername || '').toLowerCase().trim().replace(/^@+/, '').replace(/\s+/g, '_');
+  // Clean invalid characters gracefully rather than throwing errors
+  username = username.replace(/[^a-zA-Z0-9_\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF-]/g, '');
+
   if (!username) {
     throw new Error(t.errEmptyUsername || 'يرجى إدخال اسم المستخدم');
   }
   if (username.length < 2) {
     throw new Error(t.errUsernameTooShort || 'اسم المستخدم يجب أن يكون حرفين على الأقل');
-  }
-  if (!/^[a-zA-Z0-9_\u0600-\u06FF]+$/.test(username)) {
-    throw new Error(t.errInvalidUsernameChars || 'اسم المستخدم يجب ألا يحتوي على مسافات أو رموز خاصة');
   }
 
   const registry = getLocalRegistry();
@@ -192,8 +194,10 @@ export async function registerOrLoginUsername(rawUsername, isExistingLogin = fal
   saveLocalRegistry(registry);
   setCurrentUsername(username);
 
-  // Announce user on cloud
-  publishCloudEvent('users_v3', { type: 'user_active', username });
+  // Announce user on cloud - non-blocking fire & forget
+  try {
+    publishCloudEvent('users_v3', { type: 'user_active', username });
+  } catch (_) {}
 
   return userObj;
 }
