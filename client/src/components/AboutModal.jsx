@@ -6,7 +6,6 @@ import {
 } from 'lucide-react';
 import { getAppLanguage, getTranslation } from '../i18n';
 import AppIconBadge from './AppIconBadge';
-import { logoSound } from '../logoAudio';
 
 export default function AboutModal({ isOpen, onClose, showToast }) {
   const [lang, setLang] = useState(getAppLanguage());
@@ -41,14 +40,9 @@ Status: Connected & Ready 24/7`;
     }
   };
 
-  const handlePlayChime = () => {
-    logoSound.playLogoSound();
-    if (showToast) showToast(t.logoSoundToast || '✨ تم تشغيل نغمة الشعار!', 'success');
-  };
-
   const featureList = [
     { icon: Sparkles, color: '#38bdf8', text: t.featureGeminiAi },
-    { icon: Laptop, color: '#38bdf8', text: lang === 'ar' ? 'نسخة مخصصة للابتوب والكمبيوتر (Windows & Mac)' : 'Dedicated Laptop & Desktop app (Windows & Mac)' },
+    { icon: Sparkles, color: '#38bdf8', text: lang === 'ar' ? 'تطبيق iOS سريع وسلس فائق الاستجابة' : 'Ultra-smooth & fast iOS experience' },
     { icon: MessageSquare, color: '#60a5fa', text: t.featureFriendsDm },
     { icon: Phone, color: '#34d399', text: t.featureCalls },
     { icon: MapPin, color: '#f43f5e', text: t.featureRadar },
@@ -137,7 +131,7 @@ Status: Connected & Ready 24/7`;
             flexDirection: 'column',
             alignItems: 'center'
           }}>
-            <div style={{ marginBottom: '12px', cursor: 'pointer' }} onClick={handlePlayChime}>
+            <div style={{ marginBottom: '12px' }}>
               <AppIconBadge size={72} radius={22} showBorder={true} />
             </div>
 
@@ -171,28 +165,8 @@ Status: Connected & Ready 24/7`;
               {t.aboutDescription}
             </p>
 
-            {/* Quick Chime & Copy actions */}
-            <div style={{ display: 'flex', gap: '8px', marginTop: '14px' }}>
-              <button
-                type="button"
-                onClick={handlePlayChime}
-                style={{
-                  padding: '7px 12px',
-                  borderRadius: '12px',
-                  background: 'rgba(255, 255, 255, 0.08)',
-                  border: '1px solid rgba(255, 255, 255, 0.12)',
-                  color: '#fff',
-                  fontSize: '11px',
-                  fontWeight: '700',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '5px',
-                  cursor: 'pointer'
-                }}
-              >
-                <Volume2 size={13} color="#38bdf8" />
-                <span>{lang === 'ar' ? 'صوت الشعار 🎵' : 'Play Chime 🎵'}</span>
-              </button>
+            {/* Copy info action */}
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: '14px' }}>
 
               <button
                 type="button"

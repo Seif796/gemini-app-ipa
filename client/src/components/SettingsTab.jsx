@@ -6,7 +6,6 @@ import {
 import { getActiveTheme } from '../themeIcons';
 import { getScreenTimeData, saveScreenTimeData, formatMinutes, formatSeconds } from '../screenTime';
 import { notifications } from '../notifications';
-import { logoSound } from '../logoAudio';
 import { getCurrentUsername } from '../friendsApi';
 import { getAppLanguage, setAppLanguage, getTranslation } from '../i18n';
 import AppIconBadge from './AppIconBadge';
@@ -246,29 +245,17 @@ export default function SettingsTab({ user, onLogout, showToast, onOpenAbout }) 
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+          <div>
             <button
               onClick={() => {
                 if (onOpenAbout) onOpenAbout();
                 else setIsAboutOpen(true);
               }}
               className="ios-button-primary"
-              style={{ padding: '10px', fontSize: '12px', gap: '6px', justifyContent: 'center' }}
+              style={{ width: '100%', padding: '12px', fontSize: '13px', gap: '8px', justifyContent: 'center' }}
             >
-              <Info size={14} />
-              <span>{lang === 'ar' ? 'تفاصيل التطبيق ℹ️' : 'About Details ℹ️'}</span>
-            </button>
-
-            <button
-              onClick={() => {
-                logoSound.playLogoSound();
-                showToast(t.logoSoundToast, 'success');
-              }}
-              className="ios-button-secondary"
-              style={{ padding: '10px', fontSize: '12px', gap: '6px', justifyContent: 'center' }}
-            >
-              <Volume2 size={14} color="#38bdf8" />
-              <span>{lang === 'ar' ? 'صوت الشعار 🎵' : 'Logo Chime 🎵'}</span>
+              <Info size={15} />
+              <span>{lang === 'ar' ? 'تفاصيل ومعلومات التطبيق ℹ️' : 'About Application Details ℹ️'}</span>
             </button>
           </div>
         </div>

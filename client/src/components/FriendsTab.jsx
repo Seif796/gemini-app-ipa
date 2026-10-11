@@ -226,7 +226,7 @@ export default function FriendsTab({ showToast, onOpenUsernameModal, onOpenAccou
 
       {/* Remove Confirmation Dialog */}
       {friendToRemove && (
-        <div style={{
+        <div className="animate-backdrop" style={{
           position: 'fixed',
           inset: 0,
           zIndex: 9999,
@@ -237,7 +237,7 @@ export default function FriendsTab({ showToast, onOpenUsernameModal, onOpenAccou
           justifyContent: 'center',
           padding: '20px'
         }}>
-          <div style={{
+          <div className="animate-modal-pop" style={{
             background: '#0f172a',
             border: '1px solid rgba(239, 68, 68, 0.4)',
             borderRadius: '24px',

@@ -318,33 +318,35 @@ export default function App() {
 
       {/* Main Screen Content */}
       <main style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
-        {currentTab === 'chat' && (
-          <ChatTab 
-            showToast={showToast} 
-            onStartCall={handleStartCall} 
-            onSwitchTab={(t) => setCurrentTab(t)} 
-            onOpenAbout={() => setIsAboutModalOpen(true)}
-          />
-        )}
-        {currentTab === 'friends' && (
-          <FriendsTab 
-            showToast={showToast} 
-            onOpenUsernameModal={() => setIsUsernameModalOpen(true)}
-            onOpenAccountSwitcher={() => setIsAccountSwitcherOpen(true)}
-            onStartCall={handleStartCall}
-          />
-        )}
-        {currentTab === 'tools' && <AiToolsTab showToast={showToast} />}
-        {currentTab === 'notes' && <NotesTab showToast={showToast} onTaskAdded={() => {}} />}
-        {currentTab === 'tasks' && <TasksTab showToast={showToast} />}
-        {currentTab === 'settings' && (
-          <SettingsTab 
-            user={currentUser} 
-            onLogout={handleLogout} 
-            showToast={showToast} 
-            onOpenAbout={() => setIsAboutModalOpen(true)}
-          />
-        )}
+        <div key={currentTab} className="tab-page-transition">
+          {currentTab === 'chat' && (
+            <ChatTab 
+              showToast={showToast} 
+              onStartCall={handleStartCall} 
+              onSwitchTab={(t) => setCurrentTab(t)} 
+              onOpenAbout={() => setIsAboutModalOpen(true)}
+            />
+          )}
+          {currentTab === 'friends' && (
+            <FriendsTab 
+              showToast={showToast} 
+              onOpenUsernameModal={() => setIsUsernameModalOpen(true)}
+              onOpenAccountSwitcher={() => setIsAccountSwitcherOpen(true)}
+              onStartCall={handleStartCall}
+            />
+          )}
+          {currentTab === 'tools' && <AiToolsTab showToast={showToast} />}
+          {currentTab === 'notes' && <NotesTab showToast={showToast} onTaskAdded={() => {}} />}
+          {currentTab === 'tasks' && <TasksTab showToast={showToast} />}
+          {currentTab === 'settings' && (
+            <SettingsTab 
+              user={currentUser} 
+              onLogout={handleLogout} 
+              showToast={showToast} 
+              onOpenAbout={() => setIsAboutModalOpen(true)}
+            />
+          )}
+        </div>
       </main>
 
       {/* iOS Bottom Navigation Bar */}

@@ -595,7 +595,7 @@ export default function ChatTab({ showToast, onStartCall, onSwitchTab, onOpenAbo
 
       {chatMode === 'friends' ? (
         /* ALL CHATS LIST VIEW */
-        <div style={{ flex: 1, overflowY: 'auto', padding: '8px 16px calc(var(--safe-bottom) + 80px)' }}>
+        <div className="animate-view-in" style={{ flex: 1, overflowY: 'auto', padding: '8px 16px calc(var(--safe-bottom) + 80px)' }}>
           {/* Search Box */}
           <div style={{ position: 'relative', marginBottom: '14px' }}>
             <Search size={16} color="#94a3b8" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
@@ -717,7 +717,7 @@ export default function ChatTab({ showToast, onStartCall, onSwitchTab, onOpenAbo
         <>
 
       {/* Messages Scroll Area */}
-      <div style={{
+      <div className="chat-ambient-background" style={{
         flex: 1,
         overflowY: 'auto',
         padding: '16px 16px 10px',
@@ -733,6 +733,7 @@ export default function ChatTab({ showToast, onStartCall, onSwitchTab, onOpenAbo
           return (
             <div
               key={msg.id}
+              className="animate-message-in"
               style={{
                 display: 'flex',
                 justifyContent: isUser ? 'flex-end' : 'flex-start',
@@ -941,11 +942,50 @@ export default function ChatTab({ showToast, onStartCall, onSwitchTab, onOpenAbo
 
       {/* Input Dock */}
       <div style={{
-        padding: '8px 12px calc(var(--safe-bottom) + 48px) 12px',
-        background: 'rgba(9, 10, 15, 0.95)',
+        padding: '10px 14px calc(var(--safe-bottom) + 68px) 14px',
+        background: 'linear-gradient(180deg, rgba(9, 10, 15, 0.75) 0%, rgba(9, 10, 15, 0.98) 100%)',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
         borderTop: '1px solid rgba(255, 255, 255, 0.08)'
       }}>
         <div style={{ maxWidth: '900px', margin: '0 auto', width: '100%' }}>
+          {/* Quick AI Suggestion Chips */}
+          <div style={{
+            display: 'flex',
+            gap: '8px',
+            overflowX: 'auto',
+            paddingBottom: '8px',
+            scrollbarWidth: 'none'
+          }}>
+            {[
+              { label: '💡 حل مسألة أو سؤال', prompt: 'حل هذه المسألة واشرح خطواتها بالتفصيل: ' },
+              { label: '📝 لخص نص أو درس', prompt: 'لخص هذا الموضوع في نقاط رئيسية واضحة: ' },
+              { label: '⏰ فكرني بعد 5 دقائق', prompt: 'فكرني بعد 5 دقائق بموعد مهم' },
+              { label: '🗣️ تدرب على الإنجليزية', prompt: "Let's practice conversational English together!" },
+              { label: '✍️ كتابة رسالة رسمية', prompt: 'ساعدني في كتابة رسالة رسمية واضحة بخصوص: ' }
+            ].map((chip, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => setInput(chip.prompt)}
+                style={{
+                  whiteSpace: 'nowrap',
+                  padding: '5px 12px',
+                  borderRadius: '14px',
+                  background: 'rgba(56, 189, 248, 0.12)',
+                  border: '1px solid rgba(56, 189, 248, 0.25)',
+                  color: '#38bdf8',
+                  fontSize: '11px',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  flexShrink: 0
+                }}
+              >
+                {chip.label}
+              </button>
+            ))}
+          </div>
+
           {/* Hidden File Input for Camera / Gallery */}
           <input
             type="file"
@@ -957,14 +997,15 @@ export default function ChatTab({ showToast, onStartCall, onSwitchTab, onOpenAbo
 
           <form
             onSubmit={(e) => { e.preventDefault(); handleSend(); }}
+            className="elevated-chat-input"
             style={{
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              background: 'rgba(255, 255, 255, 0.06)',
-              borderRadius: '24px',
-              padding: '4px 6px 4px 10px',
-              border: '1px solid rgba(255, 255, 255, 0.12)'
+              background: 'rgba(255, 255, 255, 0.08)',
+              borderRadius: '26px',
+              padding: '5px 8px 5px 12px',
+              border: '1.5px solid rgba(56, 189, 248, 0.28)'
             }}
           >
             {/* Camera / Image Pick Button */}

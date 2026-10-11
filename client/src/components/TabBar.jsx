@@ -32,10 +32,14 @@ export default function TabBar({ currentTab, onSelectTab, unreadTasksCount = 0, 
             className={`tab-item ${isActive ? 'active' : ''}`}
             aria-label={tab.label}
           >
-            <div style={{ position: 'relative' }}>
-              <Icon size={24} strokeWidth={isActive ? 2.5 : 2} />
+            <div style={{
+              position: 'relative',
+              transform: isActive ? 'scale(1.12)' : 'scale(1)',
+              transition: 'transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)'
+            }}>
+              <Icon size={23} strokeWidth={isActive ? 2.5 : 2} />
               {tab.badge > 0 && (
-                <span style={{
+                <span className="animate-badge-bounce" style={{
                   position: 'absolute',
                   top: '-4px',
                   right: '-8px',
@@ -45,13 +49,28 @@ export default function TabBar({ currentTab, onSelectTab, unreadTasksCount = 0, 
                   fontWeight: '700',
                   padding: '1px 5px',
                   borderRadius: '10px',
-                  lineHeight: '12px'
+                  lineHeight: '12px',
+                  boxShadow: '0 2px 8px rgba(239, 68, 68, 0.5)'
                 }}>
                   {tab.badge}
                 </span>
               )}
             </div>
-            <span>{tab.label}</span>
+            <span style={{
+              fontWeight: isActive ? '700' : '500',
+              transition: 'color 0.2s ease'
+            }}>{tab.label}</span>
+            {isActive && (
+              <span style={{
+                position: 'absolute',
+                bottom: '1px',
+                width: '4px',
+                height: '4px',
+                borderRadius: '50%',
+                background: '#38bdf8',
+                boxShadow: '0 0 8px #38bdf8'
+              }} />
+            )}
           </button>
         );
       })}

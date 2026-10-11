@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Sparkles, Zap, Crown, Shield, Flame, Moon } from 'lucide-react';
 import { getActiveTheme, getCustomIconImage } from '../themeIcons';
-import { logoSound } from '../logoAudio';
 
 export default function AppIconBadge({ size = 38, radius = 13, showBorder = true, clickable = true }) {
   const [theme, setTheme] = useState(getActiveTheme());
@@ -24,8 +23,7 @@ export default function AppIconBadge({ size = 38, radius = 13, showBorder = true
     if (!clickable) return;
     e.stopPropagation();
     setIsPressed(true);
-    logoSound.playLogoSound();
-    setTimeout(() => setIsPressed(false), 300);
+    setTimeout(() => setIsPressed(false), 250);
   };
 
   const iconProps = { size: Math.round(size * 0.52), color: '#ffffff' };

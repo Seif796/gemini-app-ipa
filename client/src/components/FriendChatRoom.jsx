@@ -142,7 +142,7 @@ export default function FriendChatRoom({ friend, onBack, onStartCall, showToast 
   };
 
   return (
-    <div className="animate-view-in" style={{
+    <div className="animate-slide-up chat-ambient-background" style={{
       position: 'fixed',
       inset: 0,
       zIndex: 100,
@@ -150,8 +150,7 @@ export default function FriendChatRoom({ friend, onBack, onStartCall, showToast 
       flexDirection: 'column',
       height: '100dvh',
       width: '100vw',
-      overflow: 'hidden',
-      background: '#07090e'
+      overflow: 'hidden'
     }}>
       {/* Header */}
       <header className="glass-header" style={{
@@ -385,94 +384,150 @@ export default function FriendChatRoom({ friend, onBack, onStartCall, showToast 
           gap: '10px'
         }}>
           {chatMessages.length === 0 ? (
-            <div style={{ textAlign: 'center', color: '#94a3b8', marginTop: '40px', fontSize: '13px' }}>
-            👋 ابدأ المحادثة الآن مع @{friend}!
-          </div>
-        ) : (
-          chatMessages.map((m) => {
-            if (m.isSystem) {
-              return (
-                <div key={m.id} style={{
-                  textAlign: 'center',
-                  fontSize: '11px',
-                  color: '#94a3b8',
-                  padding: '5px 12px',
-                  background: 'rgba(255, 255, 255, 0.04)',
-                  borderRadius: '14px',
-                  margin: '4px auto',
-                  maxWidth: '85%'
-                }}>
-                  {m.text}
-                </div>
-              );
-            }
-
-            // Gemini message
-            if (m.isBot) {
-              return (
-                <div key={m.id} className="animate-message-in" style={{
-                  alignSelf: 'flex-start',
-                  maxWidth: '85%',
-                  background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.95))',
-                  border: '1.5px solid rgba(56, 189, 248, 0.45)',
-                  borderRadius: '18px 18px 18px 4px',
-                  padding: '10px 14px',
-                  boxShadow: '0 4px 20px rgba(56, 189, 248, 0.16)'
-                }}>
-                  <div style={{
+            <div style={{
+              textAlign: 'center',
+              padding: '28px 16px',
+              background: 'rgba(255, 255, 255, 0.03)',
+              borderRadius: '24px',
+              border: '1px solid rgba(255, 255, 255, 0.08)',
+              margin: '24px auto',
+              maxWidth: '360px',
+              backdropFilter: 'blur(10px)'
+            }}>
+              <div style={{
+                width: '60px',
+                height: '60px',
+                borderRadius: '50%',
+                background: 'linear-gradient(135deg, #0284c7 0%, #38bdf8 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '22px',
+                fontWeight: '900',
+                color: '#fff',
+                margin: '0 auto 12px',
+                boxShadow: '0 0 24px rgba(56, 189, 248, 0.35)'
+              }}>
+                {getUserInitials(friend)}
+              </div>
+              <h3 style={{ fontSize: '16px', fontWeight: '800', color: '#fff', marginBottom: '4px' }}>
+                محادثة جديدة مع @{friend}
+              </h3>
+              <p style={{ fontSize: '12px', color: '#94a3b8', lineHeight: '1.4', marginBottom: '14px' }}>
+                دردشة فورية مشفرة وسريعة. يمكنك أيضاً كتابة @gemini لسؤال الذكاء الاصطناعي معاً!
+              </p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', justifyContent: 'center' }}>
+                {['👋 مرحباً بك!', 'كيف حالك؟', 'اسأل @gemini ✨'].map((suggestion, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setMsgInput(suggestion)}
+                    style={{
+                      padding: '5px 12px',
+                      borderRadius: '16px',
+                      background: 'rgba(56, 189, 248, 0.15)',
+                      border: '1px solid rgba(56, 189, 248, 0.3)',
+                      color: '#38bdf8',
+                      fontSize: '11px',
+                      fontWeight: '700',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {suggestion}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            chatMessages.map((m) => {
+              if (m.isSystem) {
+                return (
+                  <div key={m.id} style={{
+                    textAlign: 'center',
                     fontSize: '11px',
-                    color: '#38bdf8',
-                    fontWeight: '800',
-                    marginBottom: '4px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '5px'
+                    color: '#94a3b8',
+                    padding: '5px 12px',
+                    background: 'rgba(255, 255, 255, 0.04)',
+                    borderRadius: '14px',
+                    margin: '4px auto',
+                    maxWidth: '85%'
                   }}>
-                    <Sparkles size={13} />
-                    <span>Gemini ✨ (الذكاء الاصطناعي)</span>
-                  </div>
-                  <div style={{ fontSize: '13px', color: '#ffffff', lineHeight: '1.5', whiteSpace: 'pre-wrap' }}>
                     {m.text}
                   </div>
-                  <div style={{ fontSize: '9px', color: '#64748b', marginTop: '4px' }}>
-                    {new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                );
+              }
+
+              // Gemini message
+              if (m.isBot) {
+                return (
+                  <div key={m.id} className="animate-message-in" style={{
+                    alignSelf: 'flex-start',
+                    maxWidth: '85%',
+                    background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.95))',
+                    border: '1.5px solid rgba(56, 189, 248, 0.45)',
+                    borderRadius: '18px 18px 18px 4px',
+                    padding: '10px 14px',
+                    boxShadow: '0 4px 20px rgba(56, 189, 248, 0.16)'
+                  }}>
+                    <div style={{
+                      fontSize: '11px',
+                      color: '#38bdf8',
+                      fontWeight: '800',
+                      marginBottom: '4px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '5px'
+                    }}>
+                      <Sparkles size={13} />
+                      <span>Gemini ✨ (الذكاء الاصطناعي)</span>
+                    </div>
+                    <div style={{ fontSize: '13px', color: '#ffffff', lineHeight: '1.5', whiteSpace: 'pre-wrap' }}>
+                      {m.text}
+                    </div>
+                    <div style={{ fontSize: '9px', color: '#64748b', marginTop: '4px' }}>
+                      {new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                  </div>
+                );
+              }
+
+              const isMe = m.sender === myUsername;
+              return (
+                <div key={m.id} className="animate-message-in" style={{
+                  alignSelf: isMe ? 'flex-end' : 'flex-start',
+                  maxWidth: '75%',
+                  background: isMe
+                    ? 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)'
+                    : 'rgba(255, 255, 255, 0.08)',
+                  border: isMe ? 'none' : '1px solid rgba(255, 255, 255, 0.12)',
+                  borderRadius: isMe ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
+                  padding: '9px 13px',
+                  boxShadow: isMe ? '0 4px 15px rgba(2, 132, 199, 0.3)' : '0 2px 8px rgba(0, 0, 0, 0.2)'
+                }}>
+                  {!isMe && (
+                    <div style={{ fontSize: '10px', color: '#38bdf8', fontWeight: '700', marginBottom: '2px' }}>
+                      @{m.sender}
+                    </div>
+                  )}
+                  <div style={{ fontSize: '13px', color: '#ffffff', lineHeight: '1.4', wordBreak: 'break-word' }}>
+                    {m.text}
+                  </div>
+                  <div style={{
+                    fontSize: '9px',
+                    color: isMe ? 'rgba(255, 255, 255, 0.75)' : '#64748b',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: isMe ? 'flex-end' : 'flex-start',
+                    gap: '4px',
+                    marginTop: '3px'
+                  }}>
+                    <span>{new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    {isMe && <span style={{ color: '#7dd3fc', fontSize: '10px', fontWeight: '700' }}>✓✓</span>}
                   </div>
                 </div>
               );
-            }
-
-            const isMe = m.sender === myUsername;
-            return (
-              <div key={m.id} className="animate-message-in" style={{
-                alignSelf: isMe ? 'flex-end' : 'flex-start',
-                maxWidth: '75%',
-                background: isMe
-                  ? 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)'
-                  : 'rgba(255, 255, 255, 0.08)',
-                border: isMe ? 'none' : '1px solid rgba(255, 255, 255, 0.12)',
-                borderRadius: isMe ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
-                padding: '9px 13px'
-              }}>
-                {!isMe && (
-                  <div style={{ fontSize: '10px', color: '#38bdf8', fontWeight: '700', marginBottom: '2px' }}>
-                    @{m.sender}
-                  </div>
-                )}
-                <div style={{ fontSize: '13px', color: '#ffffff', lineHeight: '1.4', wordBreak: 'break-word' }}>
-                  {m.text}
-                </div>
-                <div style={{
-                  fontSize: '9px',
-                  color: isMe ? 'rgba(255, 255, 255, 0.7)' : '#64748b',
-                  textAlign: isMe ? 'left' : 'right',
-                  marginTop: '3px'
-                }}>
-                  {new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </div>
-              </div>
-            );
-          })
-        )}
+            })
+          )}
 
         {/* Gemini Thinking Indicator */}
         {isGeminiThinking && (
@@ -499,12 +554,13 @@ export default function FriendChatRoom({ friend, onBack, onStartCall, showToast 
         </div>
       </div>
 
-      {/* Input Dock (Flush at bottom, taking full width with responsive centering) */}
+      {/* Input Dock (Elevated comfortably above screen bottom) */}
       <div style={{
         width: '100%',
-        padding: '8px 12px calc(var(--safe-bottom) + 8px) 12px',
-        background: 'rgba(9, 10, 15, 0.96)',
-        backdropFilter: 'blur(16px)',
+        padding: '12px 14px calc(var(--safe-bottom) + 32px) 14px',
+        background: 'linear-gradient(180deg, rgba(9, 10, 15, 0.75) 0%, rgba(9, 10, 15, 0.98) 100%)',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
         borderTop: '1px solid rgba(255, 255, 255, 0.08)',
         zIndex: 40
       }}>
@@ -514,7 +570,7 @@ export default function FriendChatRoom({ friend, onBack, onStartCall, showToast 
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            marginBottom: '6px',
+            marginBottom: '8px',
             padding: '0 4px'
           }}>
             <button
@@ -526,8 +582,8 @@ export default function FriendChatRoom({ friend, onBack, onStartCall, showToast 
                 });
               }}
               style={{
-                padding: '4px 10px',
-                borderRadius: '12px',
+                padding: '5px 12px',
+                borderRadius: '14px',
                 background: 'rgba(56, 189, 248, 0.18)',
                 border: '1px solid rgba(56, 189, 248, 0.35)',
                 color: '#38bdf8',
@@ -539,7 +595,7 @@ export default function FriendChatRoom({ friend, onBack, onStartCall, showToast 
                 cursor: 'pointer'
               }}
             >
-              <Sparkles size={12} />
+              <Sparkles size={13} />
               <span>اسأل @gemini ✨</span>
             </button>
             <span style={{ fontSize: '10px', color: '#64748b' }}>
@@ -549,14 +605,15 @@ export default function FriendChatRoom({ friend, onBack, onStartCall, showToast 
 
           <form
             onSubmit={handleSendMessage}
+            className="elevated-chat-input"
             style={{
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              background: 'rgba(255, 255, 255, 0.06)',
-              borderRadius: '24px',
-              padding: '4px 6px 4px 12px',
-              border: '1px solid rgba(255, 255, 255, 0.12)'
+              background: 'rgba(255, 255, 255, 0.08)',
+              borderRadius: '26px',
+              padding: '6px 8px 6px 14px',
+              border: '1.5px solid rgba(56, 189, 248, 0.28)'
             }}
           >
             <input
