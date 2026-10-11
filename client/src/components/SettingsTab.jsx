@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Bell, LogOut, CheckCircle2, Hourglass, Clock, ShieldAlert, 
-  Volume2, UserCheck, Globe, Info, Sparkles, Code2, Cpu 
+  Volume2, UserCheck, Globe, Info, Sparkles, Code2, Cpu, 
+  Keyboard, Zap, Share2 
 } from 'lucide-react';
 import { getActiveTheme } from '../themeIcons';
 import { getScreenTimeData, saveScreenTimeData, formatMinutes, formatSeconds } from '../screenTime';
@@ -12,7 +13,7 @@ import AppIconBadge from './AppIconBadge';
 import LanguageToggle from './LanguageToggle';
 import AboutModal from './AboutModal';
 
-export default function SettingsTab({ user, onLogout, showToast, onOpenAbout }) {
+export default function SettingsTab({ user, onLogout, showToast, onOpenAbout, onOpenFrancoKeyboard }) {
   const [lang, setLang] = useState(getAppLanguage());
   const t = getTranslation(lang);
   const [screenTime, setScreenTime] = useState(getScreenTimeData());
@@ -256,6 +257,76 @@ export default function SettingsTab({ user, onLogout, showToast, onOpenAbout }) 
             >
               <Info size={15} />
               <span>{lang === 'ar' ? 'تفاصيل ومعلومات التطبيق ℹ️' : 'About Application Details ℹ️'}</span>
+            </button>
+          </div>
+        </div>
+
+        {/* ⌨️ Seif Franco Keyboard Card (Featured like Snapchat Bitmoji Keyboard) */}
+        <div className="glass-panel" style={{
+          padding: '18px',
+          border: '1.5px solid rgba(56, 189, 248, 0.4)',
+          background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.8) 0%, rgba(30, 41, 59, 0.5) 100%)',
+          boxShadow: '0 8px 32px rgba(56, 189, 248, 0.15)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{
+                width: '34px',
+                height: '34px',
+                borderRadius: '10px',
+                background: 'linear-gradient(135deg, #0284c7, #38bdf8)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#fff'
+              }}>
+                <Keyboard size={18} />
+              </div>
+              <div>
+                <h3 style={{ fontSize: '15px', fontWeight: '800', color: '#fff', margin: 0 }}>
+                  لوحة مفاتيح سيف فرانكو
+                </h3>
+                <div style={{ fontSize: '11px', color: '#38bdf8', fontWeight: '700' }}>
+                  Franco Keyboard • iOS Extension ⚡
+                </div>
+              </div>
+            </div>
+            <span style={{
+              fontSize: '11px',
+              padding: '3px 9px',
+              borderRadius: '12px',
+              background: 'rgba(56, 189, 248, 0.2)',
+              border: '1px solid rgba(56, 189, 248, 0.35)',
+              color: '#38bdf8',
+              fontWeight: '800'
+            }}>
+              مفعل 🟢
+            </span>
+          </div>
+
+          <p style={{ fontSize: '12px', color: '#cbd5e1', marginBottom: '14px', lineHeight: '1.5' }}>
+            {lang === 'ar'
+              ? 'كيبورد ذكي يترجم العربي إلى فرانكو تلقائياً فور كتابتك! يمكنك تفعيله في إعدادات الآيفون لاستخدامه مباشرة في الواتساب وفي كل التطبيقات ككيبورد رسمي.'
+              : 'Smart keyboard that converts Arabic to Franco automatically! Enable it in iOS Settings to use directly inside WhatsApp and everywhere across the system.'}
+          </p>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <button
+              onClick={() => onOpenFrancoKeyboard && onOpenFrancoKeyboard()}
+              className="ios-button-primary"
+              style={{ width: '100%', padding: '12px', fontSize: '13px', gap: '8px', justifyContent: 'center' }}
+            >
+              <Zap size={16} />
+              <span>{lang === 'ar' ? 'تجربة الكيبورد وتخصيص الألوان ⌨️' : 'Try Keyboard & Themes ⌨️'}</span>
+            </button>
+
+            <button
+              onClick={() => onOpenFrancoKeyboard && onOpenFrancoKeyboard()}
+              className="ios-button-secondary"
+              style={{ width: '100%', padding: '11px', fontSize: '12px', gap: '6px', justifyContent: 'center' }}
+            >
+              <Share2 size={14} color="#38bdf8" />
+              <span>{lang === 'ar' ? '📲 طريقة التفعيل في إعدادات الآيفون (WhatsApp)' : 'iOS Settings Activation Guide (WhatsApp)'}</span>
             </button>
           </div>
         </div>

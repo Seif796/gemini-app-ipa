@@ -1,13 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { 
-  ArrowLeft, Phone, Video, Trash2, Send, Sparkles, Bot, Clock, AlertTriangle 
+  ArrowLeft, Phone, Video, Trash2, Send, Sparkles, Bot, Clock, AlertTriangle, 
+  Keyboard, Zap 
 } from 'lucide-react';
 import { 
   getCurrentUsername, getChatMessages, sendFriendMessage, 
   toggleBotInChat, removeFriend 
 } from '../friendsApi';
+import { convertArabicToFranco } from '../francoConverter';
 import { getAppLanguage, getTranslation } from '../i18n';
 import LanguageToggle from './LanguageToggle';
+import FrancoKeyboardModal from './FrancoKeyboardModal';
 
 function getUserInitials(name) {
   if (!name) return '?';
@@ -26,6 +29,7 @@ export default function FriendChatRoom({ friend, onBack, onStartCall, showToast 
   const [msgInput, setMsgInput] = useState('');
   const [sendingMsg, setSendingMsg] = useState(false);
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
+  const [isFrancoModalOpen, setIsFrancoModalOpen] = useState(false);
 
   const chatEndRef = useRef(null);
   const pollTimerRef = useRef(null);
@@ -565,7 +569,7 @@ export default function FriendChatRoom({ friend, onBack, onStartCall, showToast 
         zIndex: 40
       }}>
         <div style={{ maxWidth: '900px', margin: '0 auto', width: '100%' }}>
-          {/* Quick @gemini Tag Shortcut */}
+          {/* Quick Shortcuts Bar: @gemini & Franco */}
           <div style={{
             display: 'flex',
             alignItems: 'center',
@@ -573,34 +577,79 @@ export default function FriendChatRoom({ friend, onBack, onStartCall, showToast 
             marginBottom: '8px',
             padding: '0 4px'
           }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setMsgInput((prev) => {
+                    if (prev.includes('@gemini')) return prev;
+                    return prev.trim() ? `@gemini ${prev}` : '@gemini ';
+                  });
+                }}
+                style={{
+                  padding: '5px 12px',
+                  borderRadius: '14px',
+                  background: 'rgba(56, 189, 248, 0.18)',
+                  border: '1px solid rgba(56, 189, 248, 0.35)',
+                  color: '#38bdf8',
+                  fontSize: '11px',
+                  fontWeight: '700',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  cursor: 'pointer'
+                }}
+              >
+                <Sparkles size={13} />
+                <span>اسأل @gemini ✨</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (msgInput.trim()) {
+                    setMsgInput(convertArabicToFranco(msgInput));
+                    if (showToast) showToast('تم تحويل الرسالة إلى فرانكو! ⚡', 'success');
+                  } else {
+                    setIsFrancoModalOpen(true);
+                  }
+                }}
+                style={{
+                  padding: '5px 12px',
+                  borderRadius: '14px',
+                  background: 'rgba(168, 85, 247, 0.18)',
+                  border: '1px solid rgba(168, 85, 247, 0.35)',
+                  color: '#c084fc',
+                  fontSize: '11px',
+                  fontWeight: '700',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  cursor: 'pointer'
+                }}
+              >
+                <Zap size={13} />
+                <span>تحويل فرانكو ⚡</span>
+              </button>
+            </div>
+
             <button
               type="button"
-              onClick={() => {
-                setMsgInput((prev) => {
-                  if (prev.includes('@gemini')) return prev;
-                  return prev.trim() ? `@gemini ${prev}` : '@gemini ';
-                });
-              }}
+              onClick={() => setIsFrancoModalOpen(true)}
               style={{
-                padding: '5px 12px',
-                borderRadius: '14px',
-                background: 'rgba(56, 189, 248, 0.18)',
-                border: '1px solid rgba(56, 189, 248, 0.35)',
-                color: '#38bdf8',
+                background: 'transparent',
+                border: 'none',
+                color: '#94a3b8',
                 fontSize: '11px',
-                fontWeight: '700',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '5px',
+                gap: '4px',
                 cursor: 'pointer'
               }}
             >
-              <Sparkles size={13} />
-              <span>اسأل @gemini ✨</span>
+              <Keyboard size={13} />
+              <span>كيبورد</span>
             </button>
-            <span style={{ fontSize: '10px', color: '#64748b' }}>
-              سيرد عليكم أنتم الاثنين معاً
-            </span>
           </div>
 
           <form
@@ -616,6 +665,35 @@ export default function FriendChatRoom({ friend, onBack, onStartCall, showToast 
               border: '1.5px solid rgba(56, 189, 248, 0.28)'
             }}
           >
+            {/* Quick Franco Converter Button in Input */}
+            <button
+              type="button"
+              onClick={() => {
+                if (msgInput.trim()) {
+                  setMsgInput(convertArabicToFranco(msgInput));
+                  if (showToast) showToast('تم تحويل النص إلى فرانكو! ⚡', 'success');
+                } else {
+                  setIsFrancoModalOpen(true);
+                }
+              }}
+              title="تحويل النص لفرانكو أو فتح الكيبورد"
+              style={{
+                background: 'rgba(168, 85, 247, 0.18)',
+                border: '1px solid rgba(168, 85, 247, 0.35)',
+                borderRadius: '50%',
+                width: '32px',
+                height: '32px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                color: '#c084fc',
+                flexShrink: 0
+              }}
+            >
+              <Zap size={16} />
+            </button>
+
             <input
               type="text"
               placeholder="اكتب رسالة أو اسأل @gemini..."
@@ -652,6 +730,14 @@ export default function FriendChatRoom({ friend, onBack, onStartCall, showToast 
           </form>
         </div>
       </div>
+
+      {/* Franco Keyboard Modal */}
+      <FrancoKeyboardModal
+        isOpen={isFrancoModalOpen}
+        onClose={() => setIsFrancoModalOpen(false)}
+        onInsertText={(text) => setMsgInput((prev) => prev ? `${prev} ${text}` : text)}
+        showToast={showToast}
+      />
     </div>
   );
 }

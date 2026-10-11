@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   Send, Sparkles, Trash2, Copy, Check, Bot, Bell, Clock, Cpu, 
   ExternalLink, Power, Mic, MicOff, Camera as CameraIcon, Image as ImageIcon, 
-  Volume2, X, Phone, Video, UserPlus, Search 
+  Volume2, X, Phone, Video, UserPlus, Search, Keyboard, Zap 
 } from 'lucide-react';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { SpeechRecognition } from '@capacitor-community/speech-recognition';
@@ -12,12 +12,13 @@ import { notifications } from '../notifications';
 import { getActiveTheme } from '../themeIcons';
 import { openApp, closeCurrentApp, findAppByName } from '../appLauncher';
 import { getAllChatsOverview } from '../friendsApi';
+import { convertArabicToFranco } from '../francoConverter';
 import AppIconBadge from './AppIconBadge';
 import LanguageToggle from './LanguageToggle';
 import FriendChatRoom from './FriendChatRoom';
 import { getAppLanguage, getTranslation } from '../i18n';
 
-export default function ChatTab({ showToast, onStartCall, onSwitchTab, onOpenAbout }) {
+export default function ChatTab({ showToast, onStartCall, onSwitchTab, onOpenAbout, onOpenFrancoKeyboard }) {
   const [lang, setLang] = useState(getAppLanguage());
   const t = getTranslation(lang);
 
@@ -957,6 +958,37 @@ export default function ChatTab({ showToast, onStartCall, onSwitchTab, onOpenAbo
             paddingBottom: '8px',
             scrollbarWidth: 'none'
           }}>
+            {/* Featured Franco Keyboard Shortcut */}
+            <button
+              type="button"
+              onClick={() => {
+                if (input.trim()) {
+                  setInput(convertArabicToFranco(input));
+                  if (showToast) showToast('تم تحويل النص إلى فرانكو! ⚡', 'success');
+                } else if (onOpenFrancoKeyboard) {
+                  onOpenFrancoKeyboard();
+                }
+              }}
+              style={{
+                whiteSpace: 'nowrap',
+                padding: '5px 12px',
+                borderRadius: '14px',
+                background: 'rgba(168, 85, 247, 0.2)',
+                border: '1px solid rgba(168, 85, 247, 0.4)',
+                color: '#c084fc',
+                fontSize: '11px',
+                fontWeight: '800',
+                cursor: 'pointer',
+                flexShrink: 0,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px'
+              }}
+            >
+              <Zap size={12} />
+              <span>⚡ كيبورد فرانكو</span>
+            </button>
+
             {[
               { label: '💡 حل مسألة أو سؤال', prompt: 'حل هذه المسألة واشرح خطواتها بالتفصيل: ' },
               { label: '📝 لخص نص أو درس', prompt: 'لخص هذا الموضوع في نقاط رئيسية واضحة: ' },
@@ -1008,6 +1040,34 @@ export default function ChatTab({ showToast, onStartCall, onSwitchTab, onOpenAbo
               border: '1.5px solid rgba(56, 189, 248, 0.28)'
             }}
           >
+            {/* Franco Keyboard / Quick Converter Button */}
+            <button
+              type="button"
+              onClick={() => {
+                if (input.trim()) {
+                  setInput(convertArabicToFranco(input));
+                  if (showToast) showToast('تم تحويل النص لفرانكو فوراً! ⚡', 'success');
+                } else if (onOpenFrancoKeyboard) {
+                  onOpenFrancoKeyboard();
+                }
+              }}
+              title="كيبورد فرانكو الذكي"
+              style={{
+                background: 'rgba(168, 85, 247, 0.18)',
+                border: '1px solid rgba(168, 85, 247, 0.35)',
+                borderRadius: '50%',
+                width: '32px',
+                height: '32px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                color: '#c084fc',
+                flexShrink: 0
+              }}
+            >
+              <Zap size={16} />
+            </button>
             {/* Camera / Image Pick Button */}
             <button
               type="button"

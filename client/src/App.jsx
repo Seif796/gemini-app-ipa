@@ -22,6 +22,7 @@ import UsernameModal from './components/UsernameModal';
 import CallModal from './components/CallModal';
 import AccountSwitcherModal from './components/AccountSwitcherModal';
 import AboutModal from './components/AboutModal';
+import FrancoKeyboardModal from './components/FrancoKeyboardModal';
 
 export default function App() {
   const [myUsername, setMyUsername] = useState(() => getCurrentUsername());
@@ -34,6 +35,7 @@ export default function App() {
   const [callState, setCallState] = useState(null); // { isOpen, isIncoming, callType, friend, status }
   const [isAccountSwitcherOpen, setIsAccountSwitcherOpen] = useState(false);
   const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);
+  const [isFrancoKeyboardOpen, setIsFrancoKeyboardOpen] = useState(false);
   const continuousMinutesRef = useRef(0);
 
   useEffect(() => {
@@ -325,6 +327,7 @@ export default function App() {
               onStartCall={handleStartCall} 
               onSwitchTab={(t) => setCurrentTab(t)} 
               onOpenAbout={() => setIsAboutModalOpen(true)}
+              onOpenFrancoKeyboard={() => setIsFrancoKeyboardOpen(true)}
             />
           )}
           {currentTab === 'friends' && (
@@ -344,6 +347,7 @@ export default function App() {
               onLogout={handleLogout} 
               showToast={showToast} 
               onOpenAbout={() => setIsAboutModalOpen(true)}
+              onOpenFrancoKeyboard={() => setIsFrancoKeyboardOpen(true)}
             />
           )}
         </div>
@@ -395,6 +399,13 @@ export default function App() {
       <AboutModal
         isOpen={isAboutModalOpen}
         onClose={() => setIsAboutModalOpen(false)}
+        showToast={showToast}
+      />
+
+      {/* Seif Franco Custom Keyboard Modal & iOS Setup Guide */}
+      <FrancoKeyboardModal
+        isOpen={isFrancoKeyboardOpen}
+        onClose={() => setIsFrancoKeyboardOpen(false)}
         showToast={showToast}
       />
     </div>
