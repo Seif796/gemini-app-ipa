@@ -1,5 +1,5 @@
 import { directGeminiCall } from './api';
-import { notifications, playNotificationSound } from './notifications';
+import { notifications } from './notifications';
 import { getTranslation } from './i18n';
 import { findNearbyFriends, findDepartedFriends, getLastKnownLocation } from './locationService';
 

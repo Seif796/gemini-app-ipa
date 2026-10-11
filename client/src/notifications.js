@@ -1,107 +1,7 @@
 import { LocalNotifications } from '@capacitor/local-notifications';
 
-// Snapchat-style signature chime synthesized via Web Audio API (tactile pop attack + bright ascending double-ping + glass sparkle)
-export function playSynthNotificationChime() {
-  try {
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContext) return;
-    const ctx = new AudioContext();
-    if (ctx.state === 'suspended') ctx.resume();
-
-    const now = ctx.currentTime;
-    const master = ctx.createGain();
-    master.gain.setValueAtTime(0.7, now);
-    master.connect(ctx.destination);
-
-    // Warm studio filter
-    const filter = ctx.createBiquadFilter();
-    filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(4500, now);
-    filter.connect(master);
-
-    // 1. Tactile Snap / Pop attack (frequency drop from 2400Hz to 1100Hz in 25ms)
-    const snapOsc = ctx.createOscillator();
-    const snapGain = ctx.createGain();
-    snapOsc.type = 'sine';
-    snapOsc.frequency.setValueAtTime(2400, now);
-    snapOsc.frequency.exponentialRampToValueAtTime(1100, now + 0.025);
-    snapGain.gain.setValueAtTime(0.5, now);
-    snapGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.035);
-    snapOsc.connect(snapGain);
-    snapGain.connect(filter);
-    snapOsc.start(now);
-    snapOsc.stop(now + 0.04);
-
-    // 2. First Chime Note: C6 (1046.5 Hz) - warm energetic ping at t = 0.015s
-    const n1Osc = ctx.createOscillator();
-    const n1Gain = ctx.createGain();
-    n1Osc.type = 'sine';
-    n1Osc.frequency.setValueAtTime(1046.5, now + 0.015);
-    n1Gain.gain.setValueAtTime(0.0001, now + 0.015);
-    n1Gain.gain.exponentialRampToValueAtTime(0.55, now + 0.02);
-    n1Gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.28);
-    n1Osc.connect(n1Gain);
-    n1Gain.connect(filter);
-    n1Osc.start(now + 0.015);
-    n1Osc.stop(now + 0.30);
-
-    // 3. Second Chime Note (Signature Ascending Sparkle Ping): G6 (1567.98 Hz) at t = 0.075s
-    const n2Osc = ctx.createOscillator();
-    const n2Gain = ctx.createGain();
-    n2Osc.type = 'sine';
-    n2Osc.frequency.setValueAtTime(1567.98, now + 0.075);
-    n2Gain.gain.setValueAtTime(0.0001, now + 0.075);
-    n2Gain.gain.exponentialRampToValueAtTime(0.70, now + 0.082);
-    n2Gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.58);
-    n2Osc.connect(n2Gain);
-    n2Gain.connect(filter);
-    n2Osc.start(now + 0.075);
-    n2Osc.stop(now + 0.60);
-
-    // 4. High celestial sparkle overtone: C7 (2093.0 Hz) at t = 0.085s
-    const n3Osc = ctx.createOscillator();
-    const n3Gain = ctx.createGain();
-    n3Osc.type = 'sine';
-    n3Osc.frequency.setValueAtTime(2093.0, now + 0.085);
-    n3Gain.gain.setValueAtTime(0.0001, now + 0.085);
-    n3Gain.gain.exponentialRampToValueAtTime(0.35, now + 0.095);
-    n3Gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.45);
-    n3Osc.connect(n3Gain);
-    n3Gain.connect(filter);
-    n3Osc.start(now + 0.085);
-    n3Osc.stop(now + 0.48);
-  } catch (err) {
-    console.warn('Synth notification chime error:', err);
-  }
-}
-
-let cachedAudio = null;
-let lastSoundPlayTime = 0;
-
-// Master notification sound player: plays custom audio file with debouncing + instant synth fallback + haptic vibration
+// Mobile tactile haptic vibration (system notification itself plays the sound)
 export function playNotificationSound() {
-  const now = Date.now();
-  // Prevent double sound if triggered multiple times within 1.5 seconds
-  if (now - lastSoundPlayTime < 1500) {
-    return;
-  }
-  lastSoundPlayTime = now;
-
-  try {
-    if (!cachedAudio) {
-      cachedAudio = new Audio('/notification.wav');
-    }
-    cachedAudio.currentTime = 0;
-    cachedAudio.volume = 1.0;
-    const p = cachedAudio.play();
-    if (p !== undefined) {
-      p.catch(() => playSynthNotificationChime());
-    }
-  } catch (_) {
-    playSynthNotificationChime();
-  }
-
-  // Haptic feedback for mobile devices
   if ('vibrate' in navigator) {
     try {
       navigator.vibrate([40, 60, 40]);
@@ -151,17 +51,7 @@ class NotificationService {
   }
 
   async sendNow(title, body) {
-    // 1. If running inside Electron Desktop, fire OS-level notification immediately
-    if (window.electronAPI && typeof window.electronAPI.sendNotification === 'function') {
-      try {
-        window.electronAPI.sendNotification({ title, body });
-      } catch (_) {}
-    }
-
-    // 2. Play audible audio chime and haptic feedback
-    playNotificationSound();
-
-    // 3. Mobile Capacitor LocalNotifications (shows in iOS/Android notification center)
+    // Mobile Capacitor LocalNotifications (fires real iOS/Android notification with system sound)
     try {
       await this.ensurePermission();
       await LocalNotifications.schedule({
