@@ -142,7 +142,7 @@ export default function FriendChatRoom({ friend, onBack, onStartCall, showToast 
   };
 
   return (
-    <div style={{
+    <div className="animate-view-in" style={{
       position: 'fixed',
       inset: 0,
       zIndex: 100,
@@ -410,7 +410,7 @@ export default function FriendChatRoom({ friend, onBack, onStartCall, showToast 
             // Gemini message
             if (m.isBot) {
               return (
-                <div key={m.id} style={{
+                <div key={m.id} className="animate-message-in" style={{
                   alignSelf: 'flex-start',
                   maxWidth: '85%',
                   background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.95))',
@@ -443,7 +443,7 @@ export default function FriendChatRoom({ friend, onBack, onStartCall, showToast 
 
             const isMe = m.sender === myUsername;
             return (
-              <div key={m.id} style={{
+              <div key={m.id} className="animate-message-in" style={{
                 alignSelf: isMe ? 'flex-end' : 'flex-start',
                 maxWidth: '75%',
                 background: isMe
@@ -476,7 +476,7 @@ export default function FriendChatRoom({ friend, onBack, onStartCall, showToast 
 
         {/* Gemini Thinking Indicator */}
         {isGeminiThinking && (
-          <div style={{
+          <div className="animate-pulse-glow" style={{
             alignSelf: 'flex-start',
             maxWidth: '85%',
             background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.95))',

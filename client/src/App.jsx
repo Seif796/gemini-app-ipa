@@ -22,7 +22,6 @@ import UsernameModal from './components/UsernameModal';
 import CallModal from './components/CallModal';
 import AccountSwitcherModal from './components/AccountSwitcherModal';
 import AboutModal from './components/AboutModal';
-import QrLoginModal from './components/QrLoginModal';
 
 export default function App() {
   const [myUsername, setMyUsername] = useState(() => getCurrentUsername());
@@ -35,8 +34,6 @@ export default function App() {
   const [callState, setCallState] = useState(null); // { isOpen, isIncoming, callType, friend, status }
   const [isAccountSwitcherOpen, setIsAccountSwitcherOpen] = useState(false);
   const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);
-  const [isQrModalOpen, setIsQrModalOpen] = useState(false);
-  const [qrModalMode, setQrModalMode] = useState('show'); // 'show' on laptop, 'approve' on phone
   const continuousMinutesRef = useRef(0);
 
   useEffect(() => {
@@ -179,35 +176,16 @@ export default function App() {
       setCurrentUser({ name: newUser || 'User', email: `${newUser}@seif-ai.local` });
     };
 
-    const handleOpenQrModal = (e) => {
-      setQrModalMode(e.detail?.mode || 'show');
-      setIsQrModalOpen(true);
-    };
-
-    const handleQrSuccess = (e) => {
-      const u = e.detail?.username;
-      if (u) {
-        setMyUsername(u);
-        setCurrentUser({ name: u, email: `${u}@seif-ai.local` });
-        setIsUsernameModalOpen(false);
-        setIsQrModalOpen(false);
-      }
-    };
-
     window.addEventListener('seif-call-invite', handleCallInvite);
     window.addEventListener('seif-call-response', handleCallResponse);
     window.addEventListener('seif-call-end', handleCallEnd);
     window.addEventListener('seif-account-switched', handleAccountSwitched);
-    window.addEventListener('seif-open-qr-modal', handleOpenQrModal);
-    window.addEventListener('seif-qr-login-success', handleQrSuccess);
 
     return () => {
       window.removeEventListener('seif-call-invite', handleCallInvite);
       window.removeEventListener('seif-call-response', handleCallResponse);
       window.removeEventListener('seif-call-end', handleCallEnd);
       window.removeEventListener('seif-account-switched', handleAccountSwitched);
-      window.removeEventListener('seif-open-qr-modal', handleOpenQrModal);
-      window.removeEventListener('seif-qr-login-success', handleQrSuccess);
     };
   }, []);
 
@@ -311,11 +289,10 @@ export default function App() {
     <div className="ios-app-container">
       {/* Toast Notification Banner */}
       {toast && (
-        <div style={{
+        <div className="animate-toast" style={{
           position: 'fixed',
           top: 'calc(var(--safe-top) + 12px)',
           left: '50%',
-          transform: 'translateX(-50%)',
           zIndex: 200,
           background:
             toast.type === 'error' ? 'rgba(239, 68, 68, 0.95)' :
@@ -417,20 +394,6 @@ export default function App() {
         isOpen={isAboutModalOpen}
         onClose={() => setIsAboutModalOpen(false)}
         showToast={showToast}
-      />
-
-      {/* QR Code Login Modal (Laptop <-> Mobile instant login) */}
-      <QrLoginModal
-        isOpen={isQrModalOpen}
-        mode={qrModalMode}
-        onClose={() => setIsQrModalOpen(false)}
-        showToast={showToast}
-        onLoginSuccess={(username) => {
-          setIsQrModalOpen(false);
-          setIsUsernameModalOpen(false);
-          setMyUsername(username);
-          setCurrentUser({ name: username, email: `${username}@seif-ai.local` });
-        }}
       />
     </div>
   );

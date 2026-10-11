@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, Sparkles, Check, ArrowRight, ShieldCheck, AlertCircle, X, Shuffle, QrCode } from 'lucide-react';
+import { User, Sparkles, Check, ArrowRight, ShieldCheck, AlertCircle, X, Shuffle } from 'lucide-react';
 import { registerOrLoginUsername, getSavedAccounts, switchAccount } from '../friendsApi';
 import { getAppLanguage, getTranslation } from '../i18n';
 import AppIconBadge from './AppIconBadge';
@@ -92,7 +92,7 @@ export default function UsernameModal({ isOpen, onClose, hasExistingAccount = fa
   };
 
   return (
-    <div style={{
+    <div className="animate-backdrop" style={{
       position: 'fixed',
       inset: 0,
       zIndex: 9999,
@@ -104,7 +104,7 @@ export default function UsernameModal({ isOpen, onClose, hasExistingAccount = fa
       backdropFilter: 'blur(16px)',
       WebkitBackdropFilter: 'blur(16px)'
     }}>
-      <div style={{
+      <div className="animate-modal-pop" style={{
         width: '100%',
         maxWidth: '380px',
         background: 'rgba(18, 22, 34, 0.96)',
@@ -373,33 +373,6 @@ export default function UsernameModal({ isOpen, onClose, hasExistingAccount = fa
                 <ArrowRight size={16} />
               </>
             )}
-          </button>
-
-          {/* Quick QR Code Login for Laptop */}
-          <button
-            type="button"
-            onClick={() => {
-              window.dispatchEvent(new CustomEvent('seif-open-qr-modal', { detail: { mode: 'show' } }));
-            }}
-            style={{
-              marginTop: '10px',
-              padding: '11px',
-              borderRadius: '16px',
-              border: '1px solid rgba(56, 189, 248, 0.35)',
-              background: 'rgba(56, 189, 248, 0.12)',
-              color: '#38bdf8',
-              fontSize: '13px',
-              fontWeight: '700',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-              cursor: 'pointer',
-              transition: 'all 0.2s'
-            }}
-          >
-            <QrCode size={17} />
-            <span>{lang === 'ar' ? 'تسجيل الدخول عبر كود QR من الهاتف 📲' : 'Login via Mobile QR Code 📲'}</span>
           </button>
         </form>
 

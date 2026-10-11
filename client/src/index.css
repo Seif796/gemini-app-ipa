@@ -219,3 +219,184 @@ body {
   background: rgba(255, 255, 255, 0.15);
   border-radius: 10px;
 }
+
+/* ====================================================
+   ✨ ULTRA-SMOOTH FLUID ANIMATIONS & MICRO-INTERACTIONS
+   ==================================================== */
+
+/* 1. Modal & Overlay Spring Pop */
+@keyframes modalBackdrop {
+  from {
+    opacity: 0;
+    backdrop-filter: blur(0px);
+    -webkit-backdrop-filter: blur(0px);
+  }
+  to {
+    opacity: 1;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+  }
+}
+
+@keyframes modalSpringPop {
+  0% {
+    opacity: 0;
+    transform: scale(0.9) translateY(20px);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.02) translateY(-2px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.animate-modal-pop {
+  animation: modalSpringPop 0.32s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.animate-backdrop {
+  animation: modalBackdrop 0.25s ease-out forwards;
+}
+
+/* 2. Message Bubbles Slide & Pop In */
+@keyframes messageBubbleIn {
+  0% {
+    opacity: 0;
+    transform: translateY(14px) scale(0.96);
+  }
+  70% {
+    transform: translateY(-2px) scale(1.01);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-message-in {
+  animation: messageBubbleIn 0.25s cubic-bezier(0.2, 0.9, 0.3, 1) forwards;
+}
+
+/* 3. Screen / Tab View Fade & Slide In */
+@keyframes viewFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-view-in {
+  animation: viewFadeIn 0.24s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* 4. Toast Notification Slide Down & Spring Bounce */
+@keyframes toastSlideDown {
+  0% {
+    opacity: 0;
+    transform: translateY(-30px) scale(0.92);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(4px) scale(1.02);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-toast {
+  animation: toastSlideDown 0.32s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* 5. Shimmer Wave Animation */
+@keyframes shimmerWave {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.15) 50%, rgba(255, 255, 255, 0) 100%);
+  background-size: 200% 100%;
+  animation: shimmerWave 2.5s infinite linear;
+}
+
+/* 6. Pulse Glow for Calling, Video, and Online Indicators */
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 15px rgba(56, 189, 248, 0.4), 0 0 30px rgba(56, 189, 248, 0.2);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 25px rgba(56, 189, 248, 0.8), 0 0 45px rgba(56, 189, 248, 0.4);
+    transform: scale(1.03);
+  }
+}
+
+.animate-pulse-glow {
+  animation: pulseGlow 2s infinite ease-in-out;
+}
+
+/* 7. Calling Radar Wave Circles */
+@keyframes radarRing {
+  0% {
+    transform: scale(0.85);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}
+
+.animate-radar {
+  animation: radarRing 2s cubic-bezier(0.1, 0.8, 0.3, 1) infinite;
+}
+
+/* 8. Badge Pop & Bounce */
+@keyframes badgeBounce {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.25);
+  }
+}
+
+.animate-badge-bounce {
+  animation: badgeBounce 1.5s infinite ease-in-out;
+}
+
+/* 9. Floating Hover Motion */
+@keyframes floatGentle {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+.animate-float {
+  animation: floatGentle 3s infinite ease-in-out;
+}
+
+/* 10. Tactile Micro-Press on All Interactive Elements */
+button, .tab-item, .clickable-card {
+  transition: transform 0.16s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.16s ease, box-shadow 0.16s ease;
+}
+
+button:active, .tab-item:active, .clickable-card:active {
+  transform: scale(0.95);
+}

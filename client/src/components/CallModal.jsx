@@ -332,7 +332,7 @@ export default function CallModal({ callState, onClose, showToast }) {
   if (!callState?.isOpen) return null;
 
   return (
-    <div style={{
+    <div className="animate-backdrop" style={{
       position: 'fixed',
       inset: 0,
       zIndex: 10000,
@@ -497,12 +497,11 @@ export default function CallModal({ callState, onClose, showToast }) {
             {(friend.substring(0, 2) || '?').toUpperCase()}
 
             {/* Pulsing Audio Ring */}
-            <div style={{
+            <div className="animate-radar" style={{
               position: 'absolute',
               inset: '-14px',
               borderRadius: '50%',
-              border: status === 'connected' ? '2.5px solid rgba(52, 211, 153, 0.5)' : '2.5px solid rgba(56, 189, 248, 0.4)',
-              animation: 'ping 2s cubic-bezier(0, 0, 0.2, 1) infinite'
+              border: status === 'connected' ? '2.5px solid rgba(52, 211, 153, 0.5)' : '2.5px solid rgba(56, 189, 248, 0.4)'
             }} />
           </div>
         )}

@@ -58,7 +58,7 @@ Status: Connected & Ready 24/7`;
   ];
 
   return (
-    <div style={{
+    <div className="animate-backdrop" style={{
       position: 'fixed',
       inset: 0,
       zIndex: 9999,
@@ -70,7 +70,7 @@ Status: Connected & Ready 24/7`;
       backdropFilter: 'blur(16px)',
       WebkitBackdropFilter: 'blur(16px)'
     }}>
-      <div style={{
+      <div className="animate-modal-pop" style={{
         width: '100%',
         maxWidth: '420px',
         maxHeight: '90vh',

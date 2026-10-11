@@ -82,16 +82,13 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: latest
-          name: "Seif AI Companion - Latest Release (iOS .IPA + Laptop .EXE)"
+          name: "Seif AI Companion - Latest Release (iOS .IPA)"
           body: |
             ## 📱 Seif AI Companion - Direct Download Links
 
             ### 🍏 iPhone (iOS)
             - **Direct .IPA File:** [Download Seif-Ai-Test.ipa](https://github.com/${{ github.repository }}/releases/download/latest/Seif-Ai-Test.ipa)
             - **Zip Archive:** [Download Seif-Ai-Test-iOS.zip](https://github.com/${{ github.repository }}/releases/download/latest/Seif-Ai-Test-iOS.zip)
-
-            ### 💻 Laptop / Computer (Windows)
-            - See Desktop Assets attached below or in the Desktop release workflow.
 
             > ⚡ **Direct download:** No login required! Simply tap the link above to download.
           files: |
