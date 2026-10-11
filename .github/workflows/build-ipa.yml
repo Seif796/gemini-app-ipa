@@ -66,6 +66,10 @@ jobs:
           SDK_PATH=$(xcrun --sdk iphoneos --show-sdk-path)
           echo "Using iOS SDK at: $SDK_PATH"
 
+          # 1. Create PlugIns folder inside compiled App.app first
+          PLUGINS_DIR="$APP_PATH/PlugIns/KeyboardExtension.appex"
+          mkdir -p "$PLUGINS_DIR"
+
           echo "Compiling native iOS Keyboard Extension (arm64-apple-ios14.0)..."
           xcrun --sdk iphoneos swiftc \
             -target arm64-apple-ios14.0 \
@@ -76,18 +80,13 @@ jobs:
             -framework Foundation \
             -O \
             -emit-executable \
-            -o KeyboardExtension \
+            -o "$PLUGINS_DIR/KeyboardExtension" \
             KeyboardExtension/KeyboardViewController.swift
 
-          # Create PlugIns folder inside compiled App.app
-          PLUGINS_DIR="$APP_PATH/PlugIns/KeyboardExtension.appex"
-          mkdir -p "$PLUGINS_DIR"
-
-          # Copy binary and extension Info.plist
-          cp KeyboardExtension "$PLUGINS_DIR/"
+          # 2. Copy extension Info.plist
           cp KeyboardExtension/Info.plist "$PLUGINS_DIR/"
 
-          # Sign with ad-hoc signature for clean sideloading & resigning support
+          # 3. Sign with ad-hoc signature for clean sideloading & resigning support
           codesign -s - --force "$PLUGINS_DIR" || true
           codesign -s - --force "$APP_PATH" || true
 
