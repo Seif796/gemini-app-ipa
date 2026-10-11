@@ -811,3 +811,4 @@ export default function FrancoKeyboardModal({ isOpen, onClose, onInsertText, sho
     </div>
   );
 }
+

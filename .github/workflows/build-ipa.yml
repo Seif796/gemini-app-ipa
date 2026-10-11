@@ -57,6 +57,44 @@ jobs:
             AD_HOC_CODE_SIGNING_ALLOWED=YES \
             clean build
 
+      - name: Compile and Embed iOS Keyboard Extension
+        run: |
+          cd client/ios/App
+          APP_PATH=$(find build -name "App.app" -type d | head -n 1)
+          echo "Found compiled App.app at: $APP_PATH"
+
+          SDK_PATH=$(xcrun --sdk iphoneos --show-sdk-path)
+          echo "Using iOS SDK at: $SDK_PATH"
+
+          echo "Compiling native iOS Keyboard Extension (arm64-apple-ios14.0)..."
+          xcrun --sdk iphoneos swiftc \
+            -target arm64-apple-ios14.0 \
+            -sdk "$SDK_PATH" \
+            -parse-as-library \
+            -Xlinker -e -Xlinker _NSExtensionMain \
+            -framework UIKit \
+            -framework Foundation \
+            -O \
+            -emit-executable \
+            -o KeyboardExtension \
+            KeyboardExtension/KeyboardViewController.swift
+
+          # Create PlugIns folder inside compiled App.app
+          PLUGINS_DIR="$APP_PATH/PlugIns/KeyboardExtension.appex"
+          mkdir -p "$PLUGINS_DIR"
+
+          # Copy binary and extension Info.plist
+          cp KeyboardExtension "$PLUGINS_DIR/"
+          cp KeyboardExtension/Info.plist "$PLUGINS_DIR/"
+
+          # Sign with ad-hoc signature for clean sideloading & resigning support
+          codesign -s - --force "$PLUGINS_DIR" || true
+          codesign -s - --force "$APP_PATH" || true
+
+          echo "=== Verifying Embedded Keyboard Extension ==="
+          ls -la "$PLUGINS_DIR"
+          file "$PLUGINS_DIR/KeyboardExtension"
+
       - name: Package .IPA & ZIP
         run: |
           cd client/ios/App
@@ -90,7 +128,7 @@ jobs:
             - **Direct .IPA File:** [Download Seif-Ai-Test.ipa](https://github.com/${{ github.repository }}/releases/download/latest/Seif-Ai-Test.ipa)
             - **Zip Archive:** [Download Seif-Ai-Test-iOS.zip](https://github.com/${{ github.repository }}/releases/download/latest/Seif-Ai-Test-iOS.zip)
 
-            > ⚡ **Direct download:** No login required! Simply tap the link above to download.
+            > ⚡ **Includes Native iOS Keyboard Extension:** Works across all apps (WhatsApp, Safari, Notes, etc.) with real-time Arabic to Franco conversion.
           files: |
             client/ios/App/Seif-Ai-Test.ipa
             client/ios/App/Seif-Ai-Test-iOS.zip
