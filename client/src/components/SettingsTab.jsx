@@ -2,22 +2,24 @@ import React, { useState, useEffect } from 'react';
 import { 
   Bell, LogOut, CheckCircle2, Hourglass, Clock, ShieldAlert, 
   Volume2, UserCheck, Globe, Info, Sparkles, Code2, Cpu, 
-  Keyboard, Zap, Share2 
+  Keyboard, Zap, Share2, Mail 
 } from 'lucide-react';
 import { getActiveTheme } from '../themeIcons';
 import { getScreenTimeData, saveScreenTimeData, formatMinutes, formatSeconds } from '../screenTime';
 import { notifications } from '../notifications';
 import { getCurrentUsername } from '../friendsApi';
 import { getAppLanguage, setAppLanguage, getTranslation } from '../i18n';
+import { getLinkedEmail } from '../emailService';
 import AppIconBadge from './AppIconBadge';
 import LanguageToggle from './LanguageToggle';
 import AboutModal from './AboutModal';
 
-export default function SettingsTab({ user, onLogout, showToast, onOpenAbout, onOpenFrancoKeyboard }) {
+export default function SettingsTab({ user, onLogout, showToast, onOpenAbout, onOpenFrancoKeyboard, onOpenEmail }) {
   const [lang, setLang] = useState(getAppLanguage());
   const t = getTranslation(lang);
   const [screenTime, setScreenTime] = useState(getScreenTimeData());
   const [isAboutOpen, setIsAboutOpen] = useState(false);
+  const [linkedEmail, setLinkedEmail] = useState(() => getLinkedEmail());
 
   useEffect(() => {
     const handleSt = (e) => {
@@ -28,11 +30,17 @@ export default function SettingsTab({ user, onLogout, showToast, onOpenAbout, on
       setLang(e.detail || getAppLanguage());
     };
 
+    const handleEmailChanged = (e) => {
+      setLinkedEmail(e.detail);
+    };
+
     window.addEventListener('seif-screentime-updated', handleSt);
     window.addEventListener('seif-language-changed', handleLang);
+    window.addEventListener('seif-email-account-changed', handleEmailChanged);
     return () => {
       window.removeEventListener('seif-screentime-updated', handleSt);
       window.removeEventListener('seif-language-changed', handleLang);
+      window.removeEventListener('seif-email-account-changed', handleEmailChanged);
     };
   }, []);
 
@@ -329,6 +337,64 @@ export default function SettingsTab({ user, onLogout, showToast, onOpenAbout, on
               <span>{lang === 'ar' ? '📲 طريقة التفعيل في إعدادات الآيفون (WhatsApp)' : 'iOS Settings Activation Guide (WhatsApp)'}</span>
             </button>
           </div>
+        </div>
+
+        {/* 📧 Email Linking & AI Summarizer Card */}
+        <div className="glass-panel" style={{
+          padding: '18px',
+          border: '1.5px solid rgba(56, 189, 248, 0.35)',
+          background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.75) 0%, rgba(30, 41, 59, 0.45) 100%)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{
+                width: '34px',
+                height: '34px',
+                borderRadius: '10px',
+                background: 'linear-gradient(135deg, #0284c7, #38bdf8)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#fff'
+              }}>
+                <Mail size={18} />
+              </div>
+              <div>
+                <h3 style={{ fontSize: '15px', fontWeight: '800', color: '#fff', margin: 0 }}>
+                  ربط البريد الإلكتروني الذكي
+                </h3>
+                <div style={{ fontSize: '11px', color: '#38bdf8', fontWeight: '700' }}>
+                  Gmail • Outlook • iCloud • AI Assistant 📬
+                </div>
+              </div>
+            </div>
+            <span style={{
+              fontSize: '11px',
+              padding: '3px 9px',
+              borderRadius: '12px',
+              background: linkedEmail ? 'rgba(52, 211, 153, 0.2)' : 'rgba(245, 158, 11, 0.2)',
+              border: linkedEmail ? '1px solid rgba(52, 211, 153, 0.4)' : '1px solid rgba(245, 158, 11, 0.4)',
+              color: linkedEmail ? '#34d399' : '#fbbf24',
+              fontWeight: '800'
+            }}>
+              {linkedEmail ? 'مرتبط ومفعل ✅' : 'غير مرتبط ⚠️'}
+            </span>
+          </div>
+
+          <p style={{ fontSize: '12px', color: '#cbd5e1', marginBottom: '14px', lineHeight: '1.5' }}>
+            {linkedEmail 
+              ? `الحساب المرتبط حالياً: (${linkedEmail.email}). يمكنك سؤال المساعد في الشات "ايه الجديد على الإيميل" لتلخيص الرسائل المهمة فورياً بنطق صوتي!`
+              : 'اربط بريدك الإلكتروني ليقوم الذكاء الاصطناعي بمتابعة صندوق الوارد وتلخيص كل الرسائل الجديدة والعاجلة بمجرد أن تسأله بالصوت أو النص!'}
+          </p>
+
+          <button
+            onClick={() => onOpenEmail && onOpenEmail()}
+            className="ios-button-primary"
+            style={{ width: '100%', padding: '12px', fontSize: '13px', gap: '8px', justifyContent: 'center' }}
+          >
+            <Mail size={16} />
+            <span>{linkedEmail ? 'إدارة البريد وصندوق الوارد 📬' : 'ربط بريدك الآن (Gmail / Outlook) ⚡'}</span>
+          </button>
         </div>
 
         {/* Screen Time & Digital Wellbeing Card */}

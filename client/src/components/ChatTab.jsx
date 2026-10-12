@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   Send, Sparkles, Trash2, Copy, Check, Bot, Bell, Clock, Cpu, 
   ExternalLink, Power, Mic, MicOff, Camera as CameraIcon, Image as ImageIcon, 
-  Volume2, X, Phone, Video, UserPlus, Search, Keyboard, Zap 
+  Volume2, X, Phone, Video, UserPlus, Search, Keyboard, Zap, Mail 
 } from 'lucide-react';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { SpeechRecognition } from '@capacitor-community/speech-recognition';
@@ -13,12 +13,13 @@ import { getActiveTheme } from '../themeIcons';
 import { openApp, closeCurrentApp, findAppByName } from '../appLauncher';
 import { getAllChatsOverview } from '../friendsApi';
 import { convertArabicToFranco } from '../francoConverter';
+import { getUnreadCount, generateEmailAiSummary, getLinkedEmail } from '../emailService';
 import AppIconBadge from './AppIconBadge';
 import LanguageToggle from './LanguageToggle';
 import FriendChatRoom from './FriendChatRoom';
 import { getAppLanguage, getTranslation } from '../i18n';
 
-export default function ChatTab({ showToast, onStartCall, onSwitchTab, onOpenAbout, onOpenFrancoKeyboard }) {
+export default function ChatTab({ showToast, onStartCall, onSwitchTab, onOpenAbout, onOpenFrancoKeyboard, onOpenEmail }) {
   const [lang, setLang] = useState(getAppLanguage());
   const t = getTranslation(lang);
 
@@ -55,20 +56,30 @@ export default function ChatTab({ showToast, onStartCall, onSwitchTab, onOpenAbo
   const [activeFriendChat, setActiveFriendChat] = useState(null);
   const [chatsList, setChatsList] = useState(() => getAllChatsOverview());
   const [searchQuery, setSearchQuery] = useState('');
+  const [unreadEmailCount, setUnreadEmailCount] = useState(() => getUnreadCount());
 
   useEffect(() => {
     const refreshChats = () => {
       setChatsList(getAllChatsOverview());
     };
+    const refreshEmails = () => {
+      setUnreadEmailCount(getUnreadCount());
+    };
+
     window.addEventListener('seif-new-dm-received', refreshChats);
     window.addEventListener('seif-friend-accepted', refreshChats);
     window.addEventListener('seif-friend-removed', refreshChats);
     window.addEventListener('seif-account-switched', refreshChats);
+    window.addEventListener('seif-emails-updated', refreshEmails);
+    window.addEventListener('seif-email-account-changed', refreshEmails);
+
     return () => {
       window.removeEventListener('seif-new-dm-received', refreshChats);
       window.removeEventListener('seif-friend-accepted', refreshChats);
       window.removeEventListener('seif-friend-removed', refreshChats);
       window.removeEventListener('seif-account-switched', refreshChats);
+      window.removeEventListener('seif-emails-updated', refreshEmails);
+      window.removeEventListener('seif-email-account-changed', refreshEmails);
     };
   }, []);
 
@@ -117,8 +128,20 @@ export default function ChatTab({ showToast, onStartCall, onSwitchTab, onOpenAbo
     const handleThemeChange = (e) => {
       if (e.detail) setTheme(e.detail);
     };
+
+    const handleAskChat = (e) => {
+      const q = e.detail?.text;
+      if (q) {
+        handleSend(q);
+      }
+    };
+
     window.addEventListener('seif-theme-changed', handleThemeChange);
-    return () => window.removeEventListener('seif-theme-changed', handleThemeChange);
+    window.addEventListener('seif-ask-chat', handleAskChat);
+    return () => {
+      window.removeEventListener('seif-theme-changed', handleThemeChange);
+      window.removeEventListener('seif-ask-chat', handleAskChat);
+    };
   }, []);
 
   const toggleSpeechRecognition = async () => {
@@ -323,12 +346,20 @@ export default function ChatTab({ showToast, onStartCall, onSwitchTab, onOpenAbo
     setSelectedImage(null);
     setLoading(true);
 
+    const isEmailQuery = /(?:ايميل|إيميل|بريد|email|الرسايل الجديدة|رسائل جديدة|جديد الإيميل|لخص الإيميل|ايه الجديد|الحاجات الجديدة|الحجات الجديده|ايه الجديد على الإيميل)/i.test(promptText);
+    const emailSummary = isEmailQuery ? generateEmailAiSummary() : null;
+
     try {
       const history = messages
         .filter((m) => m.id !== 'welcome')
         .map((m) => ({ role: m.role, content: m.content }));
 
-      const res = await api.chat(promptText, history, model, currentImg);
+      let queryForAi = promptText;
+      if (isEmailQuery && !currentImg) {
+        queryForAi = `[تعليمات المساعد الذكي لتلخيص البريد الإلكتروني]\nبيانات البريد الحالية للمستخدم:\n${emailSummary.text}\n\nسؤال المستخدم: "${promptText}"\n\nالمطلوب منك:\n1. لخص للمستخدم الرسائل الجديدة أو حالة بريده بشكل ودود وواضح ومختصر باللغة العربية.\n2. اذكر أسماء المرسلين والمواضيع المهمة.\n3. إذا كان هناك إيميل عاجل، نبهه عليه فوراً.\n4. اختتم بإخباره أنه يمكنه الضغط على زر فتح البريد لمشاهدة التفاصيل الكاملة.`;
+      }
+
+      const res = await api.chat(queryForAi, history, model, currentImg);
 
       let cleanContent = res.reply;
       let appAction = null;
@@ -400,19 +431,31 @@ export default function ChatTab({ showToast, onStartCall, onSwitchTab, onOpenAbo
         role: 'model',
         content: cleanContent,
         model: res.model,
-        appAction
+        appAction,
+        isEmailResponse: isEmailQuery
       };
 
       setMessages((prev) => [...prev, aiMsg]);
       api.saveChatMessage(aiMsg);
     } catch (err) {
-      const errorMsg = {
-        id: 'err_' + Date.now(),
-        role: 'model',
-        content: `⚠️ **Notice:** ${err.message || 'Connecting to Gemini...'}\n\nPlease check your internet connection or verify your API key in Settings.`
-      };
-      setMessages((prev) => [...prev, errorMsg]);
-      showToast(err.message, 'error');
+      if (isEmailQuery && emailSummary) {
+        const aiMsg = {
+          id: 'ai_' + Date.now(),
+          role: 'model',
+          content: emailSummary.text,
+          isEmailResponse: true
+        };
+        setMessages((prev) => [...prev, aiMsg]);
+        api.saveChatMessage(aiMsg);
+      } else {
+        const errorMsg = {
+          id: 'err_' + Date.now(),
+          role: 'model',
+          content: `⚠️ **Notice:** ${err.message || 'Connecting to Gemini...'}\n\nPlease check your internet connection or verify your API key in Settings.`
+        };
+        setMessages((prev) => [...prev, errorMsg]);
+        showToast(err.message, 'error');
+      }
     } finally {
       setLoading(false);
     }
@@ -490,6 +533,41 @@ export default function ChatTab({ showToast, onStartCall, onSwitchTab, onOpenAbo
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <LanguageToggle compact={true} showToast={showToast} />
+
+          <button
+            onClick={() => onOpenEmail && onOpenEmail()}
+            title="البريد الإلكتروني الذكي ومساعد الرسائل"
+            style={{
+              background: unreadEmailCount > 0 ? 'rgba(56, 189, 248, 0.22)' : 'rgba(255, 255, 255, 0.06)',
+              border: unreadEmailCount > 0 ? '1px solid rgba(56, 189, 248, 0.45)' : 'none',
+              borderRadius: '10px',
+              padding: '7px',
+              cursor: 'pointer',
+              color: '#38bdf8',
+              position: 'relative',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
+            <Mail size={16} />
+            {unreadEmailCount > 0 && (
+              <span style={{
+                position: 'absolute',
+                top: '-4px',
+                right: '-4px',
+                background: '#ef4444',
+                color: '#fff',
+                fontSize: '9px',
+                fontWeight: '800',
+                borderRadius: '8px',
+                padding: '1px 4px',
+                lineHeight: 1
+              }}>
+                {unreadEmailCount}
+              </span>
+            )}
+          </button>
 
           <button
             onClick={() => notifications.requestPermission().then(() => showToast('Notifications enabled! 🔔', 'success'))}
@@ -820,6 +898,31 @@ export default function ChatTab({ showToast, onStartCall, onSwitchTab, onOpenAbo
                       </button>
                     </div>
                   )}
+
+                  {msg.isEmailResponse && (
+                    <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: '1px solid rgba(255, 255, 255, 0.1)', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      <button
+                        onClick={() => onOpenEmail && onOpenEmail()}
+                        style={{
+                          background: 'linear-gradient(135deg, #0284c7, #38bdf8)',
+                          border: 'none',
+                          color: '#fff',
+                          borderRadius: '10px',
+                          padding: '7px 14px',
+                          fontSize: '12px',
+                          fontWeight: '700',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          cursor: 'pointer',
+                          boxShadow: '0 2px 10px rgba(56, 189, 248, 0.3)'
+                        }}
+                      >
+                        <Mail size={14} />
+                        <span>فتح صندوق البريد 📬</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {!isUser && (
@@ -987,6 +1090,32 @@ export default function ChatTab({ showToast, onStartCall, onSwitchTab, onOpenAbo
             >
               <Zap size={12} />
               <span>⚡ كيبورد فرانكو</span>
+            </button>
+
+            {/* Featured Email Assistant Shortcut */}
+            <button
+              type="button"
+              onClick={() => {
+                handleSend('ايه الحاجات الجديدة اللي على الإيميل؟');
+              }}
+              style={{
+                whiteSpace: 'nowrap',
+                padding: '5px 12px',
+                borderRadius: '14px',
+                background: 'rgba(56, 189, 248, 0.2)',
+                border: '1px solid rgba(56, 189, 248, 0.45)',
+                color: '#38bdf8',
+                fontSize: '11px',
+                fontWeight: '800',
+                cursor: 'pointer',
+                flexShrink: 0,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px'
+              }}
+            >
+              <Mail size={12} />
+              <span>📬 ايه الجديد على الإيميل؟</span>
             </button>
 
             {[
