@@ -4,10 +4,14 @@ import './index.css'
 import App from './App.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
 
-
-try {
+function mountApplication() {
   const container = document.getElementById('root');
-  if (container) {
+  if (!container) {
+    setTimeout(mountApplication, 20);
+    return;
+  }
+
+  try {
     const root = createRoot(container);
     root.render(
       <StrictMode>
@@ -16,11 +20,8 @@ try {
         </ErrorBoundary>
       </StrictMode>,
     );
-  }
-} catch (err) {
-  console.error('Fatal initialization error:', err);
-  const container = document.getElementById('root');
-  if (container) {
+  } catch (err) {
+    console.error('Fatal initialization error:', err);
     container.innerHTML = `
       <div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#07090e;color:#fff;padding:24px;text-align:center;font-family:-apple-system,sans-serif;">
         <div style="font-size:42px;margin-bottom:14px;">⚠️</div>
@@ -32,3 +33,8 @@ try {
   }
 }
 
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', mountApplication);
+} else {
+  mountApplication();
+}

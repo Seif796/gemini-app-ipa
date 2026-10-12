@@ -17,13 +17,34 @@
     <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
     <link rel="icon" type="image/svg+xml" href="./logo.svg" />
 
-    <!-- Apple SF Pro Font Preload & Styling -->
+    <!-- Non-blocking Font Loading for Instant iOS Render -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+
+    <!-- Global Early Error Catcher to avoid silent black screens -->
+    <script>
+      window.addEventListener('error', function(e) {
+        console.error('Initial execution error:', e);
+        var r = document.getElementById('root');
+        if (r && (!r.childNodes || r.childNodes.length <= 1)) {
+          r.innerHTML = '<div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#07090e;color:#fff;padding:24px;text-align:center;font-family:-apple-system,sans-serif;"><div style="font-size:42px;margin-bottom:12px;">⚠️</div><h3 style="font-size:18px;margin-bottom:8px;">خطأ في تشغيل التطبيق</h3><p style="font-size:12px;color:#94a3b8;max-width:300px;line-height:1.5;margin-bottom:20px;">' + (e.message || 'Error initializing app') + '</p><button onclick="localStorage.clear();location.reload();" style="padding:12px 24px;background:#38bdf8;color:#000;border:none;border-radius:14px;font-weight:700;font-size:14px;cursor:pointer;">إعادة المحاولة / Reset</button></div>';
+        }
+      });
+    </script>
   </head>
   <body>
-    <div id="root"></div>
+    <!-- Initial Branded Loader so screen is NEVER black during boot -->
+    <div id="root">
+      <div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#07090e;color:#fff;font-family:-apple-system,BlinkMacSystemFont,sans-serif;">
+        <div style="width:48px;height:48px;border:3.5px solid rgba(56,189,248,0.2);border-top:3.5px solid #38bdf8;border-radius:50%;animation:seifSpin 0.8s linear infinite;margin-bottom:16px;"></div>
+        <div style="font-size:18px;font-weight:800;color:#38bdf8;letter-spacing:0.5px;">Seif Ai Test</div>
+        <div style="font-size:12px;color:#94a3b8;margin-top:6px;">جاري تشغيل التطبيق...</div>
+      </div>
+      <style>
+        @keyframes seifSpin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+      </style>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
