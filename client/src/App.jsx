@@ -23,7 +23,6 @@ import CallModal from './components/CallModal';
 import AccountSwitcherModal from './components/AccountSwitcherModal';
 import AboutModal from './components/AboutModal';
 import FrancoKeyboardModal from './components/FrancoKeyboardModal';
-import EmailModal from './components/EmailModal';
 
 export default function App() {
   const [myUsername, setMyUsername] = useState(() => getCurrentUsername());
@@ -37,7 +36,6 @@ export default function App() {
   const [isAccountSwitcherOpen, setIsAccountSwitcherOpen] = useState(false);
   const [isAboutModalOpen, setIsAboutModalOpen] = useState(false);
   const [isFrancoKeyboardOpen, setIsFrancoKeyboardOpen] = useState(false);
-  const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
   const continuousMinutesRef = useRef(0);
 
   useEffect(() => {
@@ -58,15 +56,11 @@ export default function App() {
       document.documentElement.lang = l;
     };
 
-    const handleOpenEmail = () => setIsEmailModalOpen(true);
-
     window.addEventListener('seif-screentime-updated', handleStChange);
     window.addEventListener('seif-language-changed', handleLangChange);
-    window.addEventListener('seif-open-email-modal', handleOpenEmail);
     return () => {
       window.removeEventListener('seif-screentime-updated', handleStChange);
       window.removeEventListener('seif-language-changed', handleLangChange);
-      window.removeEventListener('seif-open-email-modal', handleOpenEmail);
     };
   }, []);
 
@@ -334,7 +328,6 @@ export default function App() {
               onSwitchTab={(t) => setCurrentTab(t)} 
               onOpenAbout={() => setIsAboutModalOpen(true)}
               onOpenFrancoKeyboard={() => setIsFrancoKeyboardOpen(true)}
-              onOpenEmail={() => setIsEmailModalOpen(true)}
             />
           )}
           {currentTab === 'friends' && (
@@ -345,7 +338,7 @@ export default function App() {
               onStartCall={handleStartCall}
             />
           )}
-          {currentTab === 'tools' && <AiToolsTab showToast={showToast} onOpenEmail={() => setIsEmailModalOpen(true)} />}
+          {currentTab === 'tools' && <AiToolsTab showToast={showToast} />}
           {currentTab === 'notes' && <NotesTab showToast={showToast} onTaskAdded={() => {}} />}
           {currentTab === 'tasks' && <TasksTab showToast={showToast} />}
           {currentTab === 'settings' && (
@@ -355,7 +348,6 @@ export default function App() {
               showToast={showToast} 
               onOpenAbout={() => setIsAboutModalOpen(true)}
               onOpenFrancoKeyboard={() => setIsFrancoKeyboardOpen(true)}
-              onOpenEmail={() => setIsEmailModalOpen(true)}
             />
           )}
         </div>
@@ -414,18 +406,6 @@ export default function App() {
       <FrancoKeyboardModal
         isOpen={isFrancoKeyboardOpen}
         onClose={() => setIsFrancoKeyboardOpen(false)}
-        showToast={showToast}
-      />
-
-      {/* Email Inbox & AI Summarizer Modal */}
-      <EmailModal
-        isOpen={isEmailModalOpen}
-        onClose={() => setIsEmailModalOpen(false)}
-        onAskAiSummary={(queryText) => {
-          setIsEmailModalOpen(false);
-          setCurrentTab('chat');
-          window.dispatchEvent(new CustomEvent('seif-ask-chat', { detail: { text: queryText || 'ايه الحاجات الجديدة اللي على الإيميل؟' } }));
-        }}
         showToast={showToast}
       />
     </div>

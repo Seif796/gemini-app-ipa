@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   Send, Sparkles, Trash2, Copy, Check, Bot, Bell, Clock, Cpu, 
   ExternalLink, Power, Mic, MicOff, Camera as CameraIcon, Image as ImageIcon, 
-  Volume2, X, Phone, Video, UserPlus, Search, Keyboard, Zap, Mail 
+  Volume2, X, Phone, Video, UserPlus, Search, Keyboard, Zap, Code2 
 } from 'lucide-react';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { SpeechRecognition } from '@capacitor-community/speech-recognition';
@@ -13,13 +13,163 @@ import { getActiveTheme } from '../themeIcons';
 import { openApp, closeCurrentApp, findAppByName } from '../appLauncher';
 import { getAllChatsOverview } from '../friendsApi';
 import { convertArabicToFranco } from '../francoConverter';
-import { getUnreadCount, generateEmailAiSummary, getLinkedEmail } from '../emailService';
 import AppIconBadge from './AppIconBadge';
 import LanguageToggle from './LanguageToggle';
 import FriendChatRoom from './FriendChatRoom';
 import { getAppLanguage, getTranslation } from '../i18n';
 
-export default function ChatTab({ showToast, onStartCall, onSwitchTab, onOpenAbout, onOpenFrancoKeyboard, onOpenEmail }) {
+// Parses markdown code blocks (```lang\ncode\n```) to separate prose from code
+function parseMessageParts(content) {
+  if (!content) return [];
+  const codeBlockRegex = /```([a-zA-Z0-9_#+.-]*)\n?([\s\S]*?)```/g;
+  const parts = [];
+  let lastIndex = 0;
+  let match;
+
+  while ((match = codeBlockRegex.exec(content)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push({
+        type: 'text',
+        content: content.substring(lastIndex, match.index)
+      });
+    }
+    parts.push({
+      type: 'code',
+      language: match[1].trim() || 'code',
+      code: match[2].trimEnd()
+    });
+    lastIndex = match.index + match[0].length;
+  }
+
+  if (lastIndex < content.length) {
+    parts.push({
+      type: 'text',
+      content: content.substring(lastIndex)
+    });
+  }
+
+  return parts;
+}
+
+// Professional Code Block Component with dedicated Copy Button (just like Gemini / ChatGPT)
+function CodeBlock({ code, language, showToast }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = (e) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(code);
+    setCopied(true);
+    if (showToast) showToast('تم نسخ الكود فقط بنجاح! 📋', 'success');
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const displayLang = (language || 'code').toLowerCase();
+
+  return (
+    <div style={{
+      margin: '10px 0',
+      borderRadius: '12px',
+      overflow: 'hidden',
+      background: '#0d1117',
+      border: '1px solid rgba(255, 255, 255, 0.12)',
+      boxShadow: '0 4px 15px rgba(0, 0, 0, 0.4)'
+    }}>
+      {/* Code Header Bar like ChatGPT / Gemini */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '7px 12px',
+        background: 'rgba(255, 255, 255, 0.05)',
+        borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+        fontSize: '12px',
+        color: '#94a3b8'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontFamily: 'monospace', fontWeight: '700', color: '#38bdf8' }}>
+          <Code2 size={14} />
+          <span>{displayLang}</span>
+        </div>
+
+        {/* Dedicated Copy Code Button */}
+        <button
+          type="button"
+          onClick={handleCopy}
+          style={{
+            background: copied ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255, 255, 255, 0.08)',
+            border: copied ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid rgba(255, 255, 255, 0.12)',
+            color: copied ? '#34d399' : '#cbd5e1',
+            borderRadius: '8px',
+            padding: '4px 10px',
+            fontSize: '11px',
+            fontWeight: '700',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '5px',
+            cursor: 'pointer',
+            transition: 'all 0.2s'
+          }}
+          title="نسخ الكود فقط"
+        >
+          {copied ? (
+            <>
+              <Check size={12} color="#34d399" />
+              <span>تم النسخ!</span>
+            </>
+          ) : (
+            <>
+              <Copy size={12} />
+              <span>نسخ الكود (Copy)</span>
+            </>
+          )}
+        </button>
+      </div>
+
+      {/* Code Body */}
+      <pre
+        dir="ltr"
+        style={{
+          margin: 0,
+          padding: '14px 16px',
+          overflowX: 'auto',
+          fontSize: '13px',
+          lineHeight: '1.5',
+          fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+          color: '#e2e8f0',
+          textAlign: 'left',
+          whiteSpace: 'pre'
+        }}
+      >
+        <code>{code}</code>
+      </pre>
+    </div>
+  );
+}
+
+function FormattedMessage({ content, showToast }) {
+  if (!content) return null;
+  const parts = parseMessageParts(content);
+
+  if (parts.length === 1 && parts[0].type === 'text') {
+    return <div style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{content}</div>;
+  }
+
+  return (
+    <div style={{ wordBreak: 'break-word' }}>
+      {parts.map((p, idx) => {
+        if (p.type === 'code') {
+          return <CodeBlock key={idx} code={p.code} language={p.language} showToast={showToast} />;
+        }
+        return (
+          <div key={idx} style={{ whiteSpace: 'pre-wrap' }}>
+            {p.content}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+export default function ChatTab({ showToast, onStartCall, onSwitchTab, onOpenAbout, onOpenFrancoKeyboard }) {
   const [lang, setLang] = useState(getAppLanguage());
   const t = getTranslation(lang);
 
@@ -56,30 +206,22 @@ export default function ChatTab({ showToast, onStartCall, onSwitchTab, onOpenAbo
   const [activeFriendChat, setActiveFriendChat] = useState(null);
   const [chatsList, setChatsList] = useState(() => getAllChatsOverview());
   const [searchQuery, setSearchQuery] = useState('');
-  const [unreadEmailCount, setUnreadEmailCount] = useState(() => getUnreadCount());
 
   useEffect(() => {
     const refreshChats = () => {
       setChatsList(getAllChatsOverview());
-    };
-    const refreshEmails = () => {
-      setUnreadEmailCount(getUnreadCount());
     };
 
     window.addEventListener('seif-new-dm-received', refreshChats);
     window.addEventListener('seif-friend-accepted', refreshChats);
     window.addEventListener('seif-friend-removed', refreshChats);
     window.addEventListener('seif-account-switched', refreshChats);
-    window.addEventListener('seif-emails-updated', refreshEmails);
-    window.addEventListener('seif-email-account-changed', refreshEmails);
 
     return () => {
       window.removeEventListener('seif-new-dm-received', refreshChats);
       window.removeEventListener('seif-friend-accepted', refreshChats);
       window.removeEventListener('seif-friend-removed', refreshChats);
       window.removeEventListener('seif-account-switched', refreshChats);
-      window.removeEventListener('seif-emails-updated', refreshEmails);
-      window.removeEventListener('seif-email-account-changed', refreshEmails);
     };
   }, []);
 
@@ -346,20 +488,12 @@ export default function ChatTab({ showToast, onStartCall, onSwitchTab, onOpenAbo
     setSelectedImage(null);
     setLoading(true);
 
-    const isEmailQuery = /(?:ايميل|إيميل|بريد|email|الرسايل الجديدة|رسائل جديدة|جديد الإيميل|لخص الإيميل|ايه الجديد|الحاجات الجديدة|الحجات الجديده|ايه الجديد على الإيميل)/i.test(promptText);
-    const emailSummary = isEmailQuery ? generateEmailAiSummary() : null;
-
     try {
       const history = messages
         .filter((m) => m.id !== 'welcome')
         .map((m) => ({ role: m.role, content: m.content }));
 
-      let queryForAi = promptText;
-      if (isEmailQuery && !currentImg) {
-        queryForAi = `[تعليمات المساعد الذكي لتلخيص البريد الإلكتروني]\nبيانات البريد الحالية للمستخدم:\n${emailSummary.text}\n\nسؤال المستخدم: "${promptText}"\n\nالمطلوب منك:\n1. لخص للمستخدم الرسائل الجديدة أو حالة بريده بشكل ودود وواضح ومختصر باللغة العربية.\n2. اذكر أسماء المرسلين والمواضيع المهمة.\n3. إذا كان هناك إيميل عاجل، نبهه عليه فوراً.\n4. اختتم بإخباره أنه يمكنه الضغط على زر فتح البريد لمشاهدة التفاصيل الكاملة.`;
-      }
-
-      const res = await api.chat(queryForAi, history, model, currentImg);
+      const res = await api.chat(promptText, history, model, currentImg);
 
       let cleanContent = res.reply;
       let appAction = null;
@@ -431,31 +565,19 @@ export default function ChatTab({ showToast, onStartCall, onSwitchTab, onOpenAbo
         role: 'model',
         content: cleanContent,
         model: res.model,
-        appAction,
-        isEmailResponse: isEmailQuery
+        appAction
       };
 
       setMessages((prev) => [...prev, aiMsg]);
       api.saveChatMessage(aiMsg);
     } catch (err) {
-      if (isEmailQuery && emailSummary) {
-        const aiMsg = {
-          id: 'ai_' + Date.now(),
-          role: 'model',
-          content: emailSummary.text,
-          isEmailResponse: true
-        };
-        setMessages((prev) => [...prev, aiMsg]);
-        api.saveChatMessage(aiMsg);
-      } else {
-        const errorMsg = {
-          id: 'err_' + Date.now(),
-          role: 'model',
-          content: `⚠️ **Notice:** ${err.message || 'Connecting to Gemini...'}\n\nPlease check your internet connection or verify your API key in Settings.`
-        };
-        setMessages((prev) => [...prev, errorMsg]);
-        showToast(err.message, 'error');
-      }
+      const errorMsg = {
+        id: 'err_' + Date.now(),
+        role: 'model',
+        content: `⚠️ **Notice:** ${err.message || 'Connecting to Gemini...'}\n\nPlease check your internet connection or verify your API key in Settings.`
+      };
+      setMessages((prev) => [...prev, errorMsg]);
+      showToast(err.message, 'error');
     } finally {
       setLoading(false);
     }
@@ -533,41 +655,6 @@ export default function ChatTab({ showToast, onStartCall, onSwitchTab, onOpenAbo
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <LanguageToggle compact={true} showToast={showToast} />
-
-          <button
-            onClick={() => onOpenEmail && onOpenEmail()}
-            title="البريد الإلكتروني الذكي ومساعد الرسائل"
-            style={{
-              background: unreadEmailCount > 0 ? 'rgba(56, 189, 248, 0.22)' : 'rgba(255, 255, 255, 0.06)',
-              border: unreadEmailCount > 0 ? '1px solid rgba(56, 189, 248, 0.45)' : 'none',
-              borderRadius: '10px',
-              padding: '7px',
-              cursor: 'pointer',
-              color: '#38bdf8',
-              position: 'relative',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}
-          >
-            <Mail size={16} />
-            {unreadEmailCount > 0 && (
-              <span style={{
-                position: 'absolute',
-                top: '-4px',
-                right: '-4px',
-                background: '#ef4444',
-                color: '#fff',
-                fontSize: '9px',
-                fontWeight: '800',
-                borderRadius: '8px',
-                padding: '1px 4px',
-                lineHeight: 1
-              }}>
-                {unreadEmailCount}
-              </span>
-            )}
-          </button>
 
           <button
             onClick={() => notifications.requestPermission().then(() => showToast('Notifications enabled! 🔔', 'success'))}
@@ -848,7 +935,7 @@ export default function ChatTab({ showToast, onStartCall, onSwitchTab, onOpenAbo
                     </div>
                   )}
 
-                  {msg.content}
+                  <FormattedMessage content={msg.content} showToast={showToast} />
 
                   {msg.appAction?.type === 'open' && (
                     <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: '1px solid rgba(255, 255, 255, 0.1)' }}>
@@ -895,31 +982,6 @@ export default function ChatTab({ showToast, onStartCall, onSwitchTab, onOpenAbo
                       >
                         <Power size={13} />
                         <span>Close App (خروج)</span>
-                      </button>
-                    </div>
-                  )}
-
-                  {msg.isEmailResponse && (
-                    <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: '1px solid rgba(255, 255, 255, 0.1)', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                      <button
-                        onClick={() => onOpenEmail && onOpenEmail()}
-                        style={{
-                          background: 'linear-gradient(135deg, #0284c7, #38bdf8)',
-                          border: 'none',
-                          color: '#fff',
-                          borderRadius: '10px',
-                          padding: '7px 14px',
-                          fontSize: '12px',
-                          fontWeight: '700',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          cursor: 'pointer',
-                          boxShadow: '0 2px 10px rgba(56, 189, 248, 0.3)'
-                        }}
-                      >
-                        <Mail size={14} />
-                        <span>فتح صندوق البريد 📬</span>
                       </button>
                     </div>
                   )}
@@ -1090,32 +1152,6 @@ export default function ChatTab({ showToast, onStartCall, onSwitchTab, onOpenAbo
             >
               <Zap size={12} />
               <span>⚡ كيبورد فرانكو</span>
-            </button>
-
-            {/* Featured Email Assistant Shortcut */}
-            <button
-              type="button"
-              onClick={() => {
-                handleSend('ايه الحاجات الجديدة اللي على الإيميل؟');
-              }}
-              style={{
-                whiteSpace: 'nowrap',
-                padding: '5px 12px',
-                borderRadius: '14px',
-                background: 'rgba(56, 189, 248, 0.2)',
-                border: '1px solid rgba(56, 189, 248, 0.45)',
-                color: '#38bdf8',
-                fontSize: '11px',
-                fontWeight: '800',
-                cursor: 'pointer',
-                flexShrink: 0,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px'
-              }}
-            >
-              <Mail size={12} />
-              <span>📬 ايه الجديد على الإيميل؟</span>
             </button>
 
             {[

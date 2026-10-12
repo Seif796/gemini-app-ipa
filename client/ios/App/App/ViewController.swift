@@ -7,7 +7,6 @@ class ViewController: CAPBridgeViewController {
         super.capacitorDidLoad()
         
         // Explicitly register local plugins into Capacitor bridge
-        bridge?.registerPluginInstance(EmailPlugin())
         bridge?.registerPluginInstance(AppIconPlugin())
     }
 }

@@ -16,10 +16,10 @@ export const AI_QUICK_ACTIONS = [
   { id: '2', title: 'Study session', icon: '📚', prompt: 'Create a 45-minute focused study plan for my subjects.' },
   { id: '3', title: 'Motivate me', icon: '🔥', prompt: 'Give me a powerful, energetic motivational boost to get to work right now!' },
   { id: '4', title: '5 Quick Ideas', icon: '💡', prompt: 'Brainstorm 5 innovative and creative ideas for productivity.' },
-  { id: '5', title: 'ملخص الإيميل', icon: '📬', prompt: 'ايه الحاجات الجديدة اللي على الإيميل؟' }
+  { id: '5', title: 'كتابة كود برمجى', icon: '💻', prompt: 'اكتب كوداً احترافياً ونظيفاً يشرح: ' }
 ];
 
-export default function AiToolsTab({ showToast, onSendToChat, onOpenEmail }) {
+export default function AiToolsTab({ showToast, onSendToChat }) {
   const [selectedTool, setSelectedTool] = useState(TOOL_MODES[0]);
   const [inputText, setInputText] = useState('');
   const [result, setResult] = useState('');
