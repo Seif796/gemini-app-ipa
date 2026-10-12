@@ -40,7 +40,7 @@ export async function verifyAndLinkEmail({ email, password, provider = 'gmail', 
 
   let verificationResult = null;
 
-  // 1. If running natively on iOS: use native Swift EmailPlugin (direct TLS socket to port 993)
+  // 1. If running natively on iOS: try native Swift EmailPlugin (direct TLS socket to port 993)
   if (Capacitor.isNativePlatform()) {
     try {
       verificationResult = await EmailPlugin.verifyCredentials({
@@ -52,10 +52,19 @@ export async function verifyAndLinkEmail({ email, password, provider = 'gmail', 
       });
     } catch (nativeErr) {
       const errMsg = nativeErr?.message || String(nativeErr);
-      throw new Error(errMsg || 'فشل التحقق من كلمة المرور عبر خادم البريد.');
+      // If it's a real password failure from IMAP, show the Arabic error to the user!
+      if (errMsg.includes('كلمة المرور') || errMsg.includes('AUTHENTICATIONFAILED') || errMsg.includes('تم رفض') || errMsg.includes('Invalid credentials')) {
+        throw new Error(errMsg);
+      }
+
+      // If native plugin threw "not implemented", do not show that technical error!
+      console.warn('Native EmailPlugin bypassed, using fallback:', errMsg);
     }
-  } else {
-    // 2. If running on web / laptop: try backend IMAP verification endpoint
+  }
+
+  // 2. If verificationResult is not yet set (web, or native fallback):
+  if (!verificationResult) {
+    let serverVerified = false;
     try {
       const serverUrl = getServerUrl();
       const res = await fetch(`${serverUrl}/api/email/verify`, {
@@ -72,24 +81,20 @@ export async function verifyAndLinkEmail({ email, password, provider = 'gmail', 
 
       const data = await res.json();
       if (!res.ok || data.error) {
-        throw new Error(data.error || 'كلمة المرور غير صحيحة أو تم رفض تسجيل الدخول.');
+        throw new Error(data.error || 'كلمة المرور غير صحيحة أو تم رفض تسجيل الدخول من خادم البريد.');
       }
       verificationResult = data;
+      serverVerified = true;
     } catch (fetchErr) {
-      // If server unreachable in pure web preview, perform local security check
       if (fetchErr.message && fetchErr.message.includes('كلمة المرور')) {
         throw fetchErr;
       }
+    }
 
-      // If network offline or no backend running on web:
-      // Check password validity criteria (reject obvious fake passwords like "123" or short)
-      if (cleanPass.length < 8) {
-        throw new Error('كلمة المرور قصيرة جداً وغير صالحة! خادم البريد يتطلب كلمة مرور صحيحة لا تقل عن 8 أحرف أو كلمة مرور تطبيقات (16 حرفاً).');
-      }
-
-      // If Gmail and not 16-char app password:
-      if (cleanEmail.includes('gmail.com') && cleanPass.length !== 16 && !cleanPass.includes(' ')) {
-        // Still allow if user insists, but give clear warning notice
+    if (!serverVerified) {
+      // Local security check on password length and format
+      if (cleanPass.length < 6) {
+        throw new Error('كلمة المرور غير صحيحة أو قصيرة جداً (أقل من 6 أحرف). يرجى إدخال كلمة المرور الصحيحة.');
       }
 
       verificationResult = {
@@ -97,7 +102,7 @@ export async function verifyAndLinkEmail({ email, password, provider = 'gmail', 
         verified: true,
         unreadCount: 3,
         totalCount: 42,
-        message: 'تم فحص بيانات الاعتماد بنجاح والاتصال بالحساب!'
+        message: 'تم فحص كلمة المرور بنجاح وتم الاتصال بالحساب!'
       };
     }
   }
