@@ -74,8 +74,11 @@ jobs:
           xcrun --sdk iphoneos swiftc \
             -target arm64-apple-ios14.0 \
             -sdk "$SDK_PATH" \
+            -module-name KeyboardExtension \
             -parse-as-library \
             -Xlinker -e -Xlinker _NSExtensionMain \
+            -Xlinker -rpath -Xlinker @executable_path/../../Frameworks \
+            -Xlinker -rpath -Xlinker @executable_path/Frameworks \
             -framework UIKit \
             -framework Foundation \
             -O \
@@ -83,12 +86,14 @@ jobs:
             -o "$PLUGINS_DIR/KeyboardExtension" \
             KeyboardExtension/KeyboardViewController.swift
 
-          # 2. Copy extension Info.plist
-          cp KeyboardExtension/Info.plist "$PLUGINS_DIR/"
+          # 2. Copy extension Info.plist and convert to binary plist format
+          cp KeyboardExtension/Info.plist "$PLUGINS_DIR/Info.plist"
+          plutil -lint "$PLUGINS_DIR/Info.plist"
+          plutil -convert binary1 "$PLUGINS_DIR/Info.plist"
 
           # 3. Sign with ad-hoc signature for clean sideloading & resigning support
-          codesign -s - --force "$PLUGINS_DIR" || true
-          codesign -s - --force "$APP_PATH" || true
+          codesign --force --sign - --timestamp=none "$PLUGINS_DIR" || true
+          codesign --force --sign - --timestamp=none "$APP_PATH" || true
 
           echo "=== Verifying Embedded Keyboard Extension ==="
           ls -la "$PLUGINS_DIR"
@@ -99,10 +104,11 @@ jobs:
           cd client/ios/App
           APP_PATH=$(find build -name "App.app" -type d | head -n 1)
           echo "Found compiled App.app at: $APP_PATH"
+          rm -rf Payload Seif-Ai-Test.ipa Seif-Ai-Test-iOS.zip
           mkdir -p Payload
-          cp -r "$APP_PATH" Payload/
-          zip -qr Seif-Ai-Test.ipa Payload
-          zip -qr Seif-Ai-Test-iOS.zip Seif-Ai-Test.ipa
+          cp -R "$APP_PATH" Payload/
+          zip -qry Seif-Ai-Test.ipa Payload
+          zip -qry Seif-Ai-Test-iOS.zip Seif-Ai-Test.ipa
           echo "IPA & ZIP packaging successful!"
           ls -lh Seif-Ai-Test.ipa Seif-Ai-Test-iOS.zip
 

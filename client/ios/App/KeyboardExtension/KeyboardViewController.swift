@@ -1,7 +1,7 @@
 import UIKit
 
 @objc(KeyboardViewController)
-class KeyboardViewController: UIInputViewController {
+public class KeyboardViewController: UIInputViewController {
 
     private enum LayoutMode {
         case arabic    // Arabic layout that converts intelligently to Franco
