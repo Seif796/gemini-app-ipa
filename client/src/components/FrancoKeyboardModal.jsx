@@ -3,7 +3,13 @@ import {
   X, Keyboard, Sparkles, Copy, Check, Share2, ArrowRight, 
   Send, ExternalLink, Globe, Delete, RefreshCw, Zap, ShieldCheck, CheckCircle2 
 } from 'lucide-react';
-import { convertArabicToFranco, convertCharToFranco } from '../francoConverter';
+import { 
+  convertArabicToFranco, 
+  convertFrancoToArabic, 
+  convertCharToFranco, 
+  translateBidirectional, 
+  hasArabicLetters 
+} from '../francoConverter';
 import { getAppLanguage } from '../i18n';
 
 // Arabic Keyboard Rows
@@ -16,9 +22,9 @@ const EN_ROW_1 = ['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'];
 const EN_ROW_2 = ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l'];
 const EN_ROW_3 = ['z', 'x', 'c', 'v', 'b', 'n', 'm'];
 
-// Numerals & Franco Special Keys (3, 7, 5, 2, 6, 9)
+// Numerals & Franco Special Keys (3, 7, 5, 2, 6, 9) + Punctuation (?, /, !)
 const NUM_ROW_1 = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
-const NUM_ROW_2 = ['3', '7', '5', '2', '6', '9', '8', "'", '!', '?'];
+const NUM_ROW_2 = ['?', '/', '!', '3', '7', '5', '2', '6', '9', '8'];
 
 // Themes
 const KEYBOARD_THEMES = [
@@ -42,11 +48,23 @@ export default function FrancoKeyboardModal({ isOpen, onClose, onInsertText, sho
 
   useEffect(() => {
     if (isFrancoActive) {
-      setFrancoText(convertArabicToFranco(inputText));
+      if (hasArabicLetters(inputText)) {
+        setFrancoText(convertArabicToFranco(inputText));
+      } else {
+        setFrancoText(convertFrancoToArabic(inputText));
+      }
     } else {
       setFrancoText(inputText);
     }
   }, [inputText, isFrancoActive]);
+
+  const handleTranslateBidirectional = () => {
+    triggerHaptic();
+    if (!inputText) return;
+    const translated = translateBidirectional(inputText);
+    setInputText(translated);
+    if (showToast) showToast('تمت الترجمة الفورية (عربي ⇄ فرانكو)! 🔄', 'success');
+  };
 
   if (!isOpen) return null;
 
@@ -368,6 +386,27 @@ export default function FrancoKeyboardModal({ isOpen, onClose, onInsertText, sho
               {/* Controls Header: Franco Mode Switch & WhatsApp share */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <button
+                    onClick={handleTranslateBidirectional}
+                    style={{
+                      padding: '4px 10px',
+                      borderRadius: '12px',
+                      background: 'rgba(16, 185, 129, 0.22)',
+                      border: '1.5px solid #10b981',
+                      color: '#10b981',
+                      fontSize: '11px',
+                      fontWeight: '800',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '5px'
+                    }}
+                    title="ترجمة فورية بين العربي والفرانكو والعكس"
+                  >
+                    <RefreshCw size={13} />
+                    <span>ترجمة 🔄</span>
+                  </button>
+
                   <button
                     onClick={() => setIsFrancoActive(!isFrancoActive)}
                     style={{
@@ -759,6 +798,44 @@ export default function FrancoKeyboardModal({ isOpen, onClose, onInsertText, sho
                   title="مسح الكل"
                 >
                   C
+                </button>
+
+                {/* Quick '?' button */}
+                <button
+                  onClick={() => handleKeyPress('?')}
+                  style={{
+                    width: '36px',
+                    height: '42px',
+                    borderRadius: '9px',
+                    background: 'rgba(251, 191, 36, 0.15)',
+                    border: '1px solid rgba(251, 191, 36, 0.4)',
+                    color: '#fbbf24',
+                    fontWeight: '800',
+                    fontSize: '17px',
+                    cursor: 'pointer'
+                  }}
+                  title="علامة استفهام"
+                >
+                  ?
+                </button>
+
+                {/* Quick '/' button */}
+                <button
+                  onClick={() => handleKeyPress('/')}
+                  style={{
+                    width: '36px',
+                    height: '42px',
+                    borderRadius: '9px',
+                    background: 'rgba(251, 191, 36, 0.15)',
+                    border: '1px solid rgba(251, 191, 36, 0.4)',
+                    color: '#fbbf24',
+                    fontWeight: '800',
+                    fontSize: '17px',
+                    cursor: 'pointer'
+                  }}
+                  title="سلاش"
+                >
+                  /
                 </button>
 
                 {/* Wide Spacebar */}
