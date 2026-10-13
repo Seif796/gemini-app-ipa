@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   Send, Sparkles, Trash2, Copy, Check, Bot, Bell, Clock, Cpu, 
   ExternalLink, Power, Mic, MicOff, Camera as CameraIcon, Image as ImageIcon, 
-  Volume2, X, Phone, Video, UserPlus, Search, Keyboard, Zap, Code2 
+  Volume2, X, Phone, Video, UserPlus, Search, Keyboard, Zap, Code2, Key 
 } from 'lucide-react';
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera';
 import { SpeechRecognition } from '@capacitor-community/speech-recognition';
@@ -574,10 +574,11 @@ export default function ChatTab({ showToast, onStartCall, onSwitchTab, onOpenAbo
       const errorMsg = {
         id: 'err_' + Date.now(),
         role: 'model',
-        content: `⚠️ **Notice:** ${err.message || 'Connecting to Gemini...'}\n\nPlease check your internet connection or verify your API key in Settings.`
+        content: `⚠️ **تعذر الاتصال بـ Gemini:** ${err.message || 'Connecting to Gemini...'}\n\nيرجى التحقق من اتصال الإنترنت أو ضبط مفتاح Gemini API في الإعدادات.`,
+        isApiKeyError: true
       };
       setMessages((prev) => [...prev, errorMsg]);
-      showToast(err.message, 'error');
+      showToast(err.message || 'تعذر الاتصال بالذكاء الاصطناعي', 'error');
     } finally {
       setLoading(false);
     }
@@ -982,6 +983,31 @@ export default function ChatTab({ showToast, onStartCall, onSwitchTab, onOpenAbo
                       >
                         <Power size={13} />
                         <span>Close App (خروج)</span>
+                      </button>
+                    </div>
+                  )}
+
+                  {msg.isApiKeyError && (
+                    <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: '1px solid rgba(255, 255, 255, 0.1)' }}>
+                      <button
+                        onClick={() => onSwitchTab && onSwitchTab('settings')}
+                        style={{
+                          background: 'linear-gradient(135deg, #4f46e5, #818cf8)',
+                          border: 'none',
+                          color: '#fff',
+                          borderRadius: '10px',
+                          padding: '7px 14px',
+                          fontSize: '12px',
+                          fontWeight: '700',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          cursor: 'pointer',
+                          boxShadow: '0 2px 8px rgba(99, 102, 241, 0.3)'
+                        }}
+                      >
+                        <Key size={14} />
+                        <span>🔑 ضبط مفتاح Gemini API في الإعدادات</span>
                       </button>
                     </div>
                   )}

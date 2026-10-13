@@ -2,13 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { 
   Bell, LogOut, CheckCircle2, Hourglass, Clock, ShieldAlert, 
   Volume2, UserCheck, Globe, Info, Sparkles, Code2, Cpu, 
-  Keyboard, Zap, Share2 
+  Keyboard, Zap, Share2, Key, Eye, EyeOff, Clipboard, Check, RefreshCw, ExternalLink 
 } from 'lucide-react';
 import { getActiveTheme } from '../themeIcons';
 import { getScreenTimeData, saveScreenTimeData, formatMinutes, formatSeconds } from '../screenTime';
 import { notifications } from '../notifications';
 import { getCurrentUsername } from '../friendsApi';
 import { getAppLanguage, setAppLanguage, getTranslation } from '../i18n';
+import { getCustomApiKey, setCustomApiKey, directGeminiCall } from '../api';
 import AppIconBadge from './AppIconBadge';
 import LanguageToggle from './LanguageToggle';
 import AboutModal from './AboutModal';
@@ -18,6 +19,10 @@ export default function SettingsTab({ user, onLogout, showToast, onOpenAbout, on
   const t = getTranslation(lang);
   const [screenTime, setScreenTime] = useState(getScreenTimeData());
   const [isAboutOpen, setIsAboutOpen] = useState(false);
+  const [apiKeyInput, setApiKeyInput] = useState(() => getCustomApiKey() || '');
+  const [showKey, setShowKey] = useState(false);
+  const [isTestingKey, setIsTestingKey] = useState(false);
+  const [keyTestResult, setKeyTestResult] = useState(null);
 
   useEffect(() => {
     const handleSt = (e) => {
@@ -55,6 +60,55 @@ export default function SettingsTab({ user, onLogout, showToast, onOpenAbout, on
     await notifications.requestPermission();
     await notifications.sendNow('Seif Ai Test', lang === 'ar' ? '🔔 التنبيهات ونغمة الإشعار مفعلة وتعمل بنجاح على هاتفك!' : '🔔 Notification alerts and crystal chime are active on your iPhone!');
     showToast(t.testNotificationToast, 'success');
+  };
+
+  const handleSaveApiKey = () => {
+    const trimmed = apiKeyInput.trim();
+    setCustomApiKey(trimmed);
+    showToast(lang === 'ar' ? 'تم حفظ مفتاح Gemini بنجاح! ⚡' : 'Gemini API key saved! ⚡', 'success');
+    setKeyTestResult(null);
+  };
+
+  const handlePasteApiKey = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text && text.trim()) {
+        const val = text.trim();
+        setApiKeyInput(val);
+        setCustomApiKey(val);
+        showToast(lang === 'ar' ? 'تم لصق وحفظ المفتاح مباشرة! 📋' : 'Pasted and saved key! 📋', 'success');
+        setKeyTestResult(null);
+      } else {
+        showToast(lang === 'ar' ? 'الحافظة فارغة' : 'Clipboard is empty', 'info');
+      }
+    } catch (_) {
+      showToast(lang === 'ar' ? 'يرجى لصق المفتاح يدوياً داخل الحقل' : 'Please paste manually into the input', 'info');
+    }
+  };
+
+  const handleTestApiKey = async () => {
+    const current = apiKeyInput.trim() || getCustomApiKey();
+    if (!current) {
+      showToast(lang === 'ar' ? 'يرجى إدخال مفتاح Gemini أولاً' : 'Please enter a Gemini key first', 'warning');
+      return;
+    }
+    setIsTestingKey(true);
+    setKeyTestResult(null);
+    try {
+      const res = await directGeminiCall('Respond with "OK"');
+      if (res && res.reply) {
+        setKeyTestResult('valid');
+        showToast(lang === 'ar' ? 'المفتاح يعمل بنجاح 100%! 🚀' : 'Gemini key is active and working! 🚀', 'success');
+      } else {
+        setKeyTestResult('invalid');
+        showToast(lang === 'ar' ? 'فشل التحقق من المفتاح' : 'Key validation failed', 'error');
+      }
+    } catch (err) {
+      setKeyTestResult('invalid');
+      showToast(err.message || (lang === 'ar' ? 'المفتاح غير صالح أو الاتصال مقطوع' : 'Key invalid or network error'), 'error');
+    } finally {
+      setIsTestingKey(false);
+    }
   };
 
   return (
@@ -105,6 +159,204 @@ export default function SettingsTab({ user, onLogout, showToast, onOpenAbout, on
         flexDirection: 'column',
         gap: '16px'
       }}>
+        {/* 🔑 Gemini API Key Configuration Card */}
+        <div className="glass-panel" style={{
+          padding: '18px',
+          border: '1.5px solid rgba(129, 140, 248, 0.45)',
+          background: 'linear-gradient(135deg, rgba(30, 27, 75, 0.7) 0%, rgba(15, 23, 42, 0.85) 100%)',
+          boxShadow: '0 8px 30px rgba(99, 102, 241, 0.15)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{
+                width: '34px',
+                height: '34px',
+                borderRadius: '10px',
+                background: 'linear-gradient(135deg, #4f46e5, #818cf8)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#fff'
+              }}>
+                <Key size={18} />
+              </div>
+              <div>
+                <h3 style={{ fontSize: '15px', fontWeight: '800', color: '#fff', margin: 0 }}>
+                  {lang === 'ar' ? 'مفتاح ذكاء اصطناعي (Gemini API)' : 'Google Gemini API Key'}
+                </h3>
+                <div style={{ fontSize: '11px', color: '#818cf8', fontWeight: '700' }}>
+                  Gemini 2.5 Flash & Pro Engine ⚡
+                </div>
+              </div>
+            </div>
+
+            <span style={{
+              fontSize: '11px',
+              padding: '3px 9px',
+              borderRadius: '12px',
+              background: apiKeyInput.trim() ? 'rgba(52, 211, 153, 0.2)' : 'rgba(245, 158, 11, 0.2)',
+              border: apiKeyInput.trim() ? '1px solid rgba(52, 211, 153, 0.4)' : '1px solid rgba(245, 158, 11, 0.4)',
+              color: apiKeyInput.trim() ? '#34d399' : '#fbbf24',
+              fontWeight: '800'
+            }}>
+              {apiKeyInput.trim() ? (lang === 'ar' ? 'مفعل ومضبوط ✅' : 'Configured ✅') : (lang === 'ar' ? 'غير محدد ⚠️' : 'Not Set ⚠️')}
+            </span>
+          </div>
+
+          <p style={{ fontSize: '12px', color: '#cbd5e1', marginBottom: '12px', lineHeight: '1.4' }}>
+            {lang === 'ar' 
+              ? 'أدخل مفتاح Gemini API الخاص بك لتشغيل المحادثات وحل المسائل بالصور بدون قيود وبأعلى سرعة ممكنة.'
+              : 'Enter your personal Google Gemini API key to run AI conversations and multimodal vision at maximum speed.'}
+          </p>
+
+          <div style={{ position: 'relative', marginBottom: '10px' }}>
+            <input
+              type={showKey ? 'text' : 'password'}
+              placeholder="AIzaSy... (Paste Gemini API Key)"
+              value={apiKeyInput}
+              onChange={(e) => {
+                setApiKeyInput(e.target.value);
+                setKeyTestResult(null);
+              }}
+              className="ios-input"
+              style={{
+                width: '100%',
+                paddingRight: '76px',
+                paddingLeft: '14px',
+                fontSize: '13px',
+                fontFamily: showKey ? 'monospace' : 'inherit',
+                background: 'rgba(0, 0, 0, 0.4)',
+                border: '1px solid rgba(255, 255, 255, 0.15)',
+                borderRadius: '12px',
+                color: '#fff',
+                height: '42px'
+              }}
+            />
+            <div style={{
+              position: 'absolute',
+              right: '8px',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px'
+            }}>
+              <button
+                type="button"
+                onClick={() => setShowKey(!showKey)}
+                title={showKey ? 'إخفاء' : 'إظهار'}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#94a3b8',
+                  padding: '4px',
+                  cursor: 'pointer',
+                  display: 'flex'
+                }}
+              >
+                {showKey ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+              <button
+                type="button"
+                onClick={handlePasteApiKey}
+                title="لصق من الحافظة"
+                style={{
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  border: '1px solid rgba(255, 255, 255, 0.15)',
+                  borderRadius: '6px',
+                  color: '#38bdf8',
+                  padding: '4px 6px',
+                  fontSize: '10px',
+                  fontWeight: '700',
+                  cursor: 'pointer'
+                }}
+              >
+                لصق
+              </button>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
+            <button
+              onClick={handleSaveApiKey}
+              className="ios-button-primary"
+              style={{ flex: 1, padding: '10px', fontSize: '13px', justifyContent: 'center' }}
+            >
+              <Check size={15} />
+              <span>{lang === 'ar' ? 'حفظ المفتاح' : 'Save Key'}</span>
+            </button>
+            <button
+              disabled={isTestingKey}
+              onClick={handleTestApiKey}
+              className="ios-button-secondary"
+              style={{ padding: '10px 14px', fontSize: '13px', justifyContent: 'center' }}
+            >
+              {isTestingKey ? <RefreshCw size={14} className="animate-spin" /> : <Zap size={14} color="#fbbf24" />}
+              <span>{isTestingKey ? (lang === 'ar' ? 'جاري الفحص...' : 'Testing...') : (lang === 'ar' ? 'اختبار الاتصال' : 'Test Key')}</span>
+            </button>
+          </div>
+
+          {keyTestResult === 'valid' && (
+            <div style={{
+              padding: '8px 12px',
+              borderRadius: '10px',
+              background: 'rgba(16, 185, 129, 0.15)',
+              border: '1px solid rgba(16, 185, 129, 0.3)',
+              color: '#34d399',
+              fontSize: '12px',
+              fontWeight: '700',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              marginBottom: '10px'
+            }}>
+              <CheckCircle2 size={15} />
+              <span>{lang === 'ar' ? 'تم الاتصال بنجاح! المفتاح يعمل وجاهز 🚀' : 'Success! Gemini key is active & ready 🚀'}</span>
+            </div>
+          )}
+
+          {keyTestResult === 'invalid' && (
+            <div style={{
+              padding: '8px 12px',
+              borderRadius: '10px',
+              background: 'rgba(239, 68, 68, 0.15)',
+              border: '1px solid rgba(239, 68, 68, 0.3)',
+              color: '#f87171',
+              fontSize: '12px',
+              fontWeight: '700',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              marginBottom: '10px'
+            }}>
+              <ShieldAlert size={15} />
+              <span>{lang === 'ar' ? 'المفتاح غير صالح أو لم يتم تفعيله بعد' : 'Invalid key. Please verify on Google AI Studio'}</span>
+            </div>
+          )}
+
+          <a
+            href="https://aistudio.google.com/app/apikey"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              fontSize: '11px',
+              color: '#818cf8',
+              textDecoration: 'none',
+              fontWeight: '700',
+              padding: '6px',
+              borderRadius: '8px',
+              background: 'rgba(129, 140, 248, 0.1)'
+            }}
+          >
+            <ExternalLink size={13} />
+            <span>{lang === 'ar' ? 'احصل على مفتاح مجاني في 30 ثانية (Google AI Studio) ↗' : 'Get a free key in 30 seconds (Google AI Studio) ↗'}</span>
+          </a>
+        </div>
+
         {/* 🌐 Language Switcher Card (Arabic / English) */}
         <div className="glass-panel" style={{ padding: '16px', border: '1.5px solid rgba(56, 189, 248, 0.35)' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
