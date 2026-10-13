@@ -3,12 +3,14 @@ import UIKit
 class KeyboardViewController: UIInputViewController {
 
     private enum LayoutMode {
-        case arabic    // Arabic layout that converts intelligently to Franco
+        case arabic    // Arabic layout with visible Franco subtitles (3, 7, 5, etc.)
+        case francoEn  // Franco QWERTY layout with English letters
         case symbols   // 123 numbers and punctuation (?, /, !, etc.)
     }
 
     private var currentMode: LayoutMode = .arabic
     private var isFrancoAutoConvert: Bool = true
+    private var heightConstraint: NSLayoutConstraint?
     
     // UI Containers
     private var rootStackView: UIStackView!
@@ -19,6 +21,7 @@ class KeyboardViewController: UIInputViewController {
     private var bottomRowStack: UIStackView!
     
     private var modeSwitchBtn: UIButton!
+    private var langSwitchBtn: UIButton!
     private var francoToggleBtn: UIButton!
     private var suggestionButtons: [UIButton] = []
     
@@ -148,7 +151,16 @@ class KeyboardViewController: UIInputViewController {
     // Arabic to Franco phonetic characters mapping
     private let arToFrCharMap: [String: String] = [
         "ع": "3", "ح": "7", "خ": "5", "ء": "2", "أ": "2", "إ": "2", "آ": "2", "ئ": "2", "ؤ": "2",
-        "ط": "6", "ظ": "6'", "ص": "9", "ض": "9'", "ق": "9", "غ": "3'", "ش": "sh", "ث": "th",
+        "ط": "6", "ظ": "6'", "ص": "9", "ض": "9'", "ق": "9", "غ": "8", "ش": "sh", "ث": "th",
+        "ب": "b", "ت": "t", "ج": "g", "د": "d", "ذ": "z", "ر": "r", "ز": "z", "س": "s",
+        "ف": "f", "ك": "k", "ل": "l", "م": "m", "ن": "n", "ه": "h", "ة": "a", "و": "w",
+        "ي": "y", "ى": "a", "ا": "a", "لا": "la"
+    ]
+
+    // Key Subtitles (displayed prominently on Arabic keys)
+    private let arKeyHints: [String: String] = [
+        "ع": "3", "ح": "7", "خ": "5", "ء": "2", "أ": "2", "إ": "2", "آ": "2", "ئ": "2", "ؤ": "2",
+        "ط": "6", "ظ": "6'", "ص": "9", "ض": "9'", "ق": "9", "غ": "8", "ش": "sh", "ث": "th",
         "ب": "b", "ت": "t", "ج": "g", "د": "d", "ذ": "z", "ر": "r", "ز": "z", "س": "s",
         "ف": "f", "ك": "k", "ل": "l", "م": "m", "ن": "n", "ه": "h", "ة": "a", "و": "w",
         "ي": "y", "ى": "a", "ا": "a", "لا": "la"
@@ -162,10 +174,15 @@ class KeyboardViewController: UIInputViewController {
         "c": "ك", "p": "ب", "v": "ف"
     ]
 
-    // Arabic Keyboard Layout (Dedicated pure Arabic letter keys)
+    // Arabic Keyboard Layout
     private let arRow1 = ["ض", "ص", "ث", "ق", "ف", "غ", "ع", "ه", "خ", "ح", "ج", "د"]
     private let arRow2 = ["ش", "س", "ي", "ب", "ل", "ا", "ت", "ن", "م", "ك", "ط"]
     private let arRow3 = ["ئ", "ء", "ؤ", "ر", "لا", "ى", "ة", "و", "ز", "ظ"]
+
+    // Franco English QWERTY Layout
+    private let enRow1 = ["q", "w", "e", "r", "t", "y", "u", "i", "o", "p"]
+    private let enRow2 = ["a", "s", "d", "f", "g", "h", "j", "k", "l"]
+    private let enRow3 = ["z", "x", "c", "v", "b", "n", "m"]
 
     // Symbols Layout
     private let symRow1 = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"]
@@ -178,6 +195,25 @@ class KeyboardViewController: UIInputViewController {
         ("6", "ط"), ("9", "ص"), ("8", "غ"), ("'", "همزة"),
         ("?", "استفهام"), ("/", "سلاش")
     ]
+
+    override func updateViewConstraints() {
+        super.updateViewConstraints()
+        setupHeightConstraint()
+    }
+
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        setupHeightConstraint()
+    }
+
+    private func setupHeightConstraint() {
+        if heightConstraint == nil {
+            let height: CGFloat = 285
+            heightConstraint = view.heightAnchor.constraint(equalToConstant: height)
+            heightConstraint?.priority = UILayoutPriority(999)
+            heightConstraint?.isActive = true
+        }
+    }
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -198,12 +234,12 @@ class KeyboardViewController: UIInputViewController {
     }
 
     private func setupUI() {
-        view.backgroundColor = UIColor(red: 22/255, green: 24/255, blue: 31/255, alpha: 1.0)
+        view.backgroundColor = UIColor(red: 18/255, green: 22/255, blue: 30/255, alpha: 1.0)
         
         rootStackView = UIStackView()
         rootStackView.axis = .vertical
-        rootStackView.spacing = 4
-        rootStackView.distribution = .fillProportionally
+        rootStackView.spacing = 3
+        rootStackView.distribution = .fill
         rootStackView.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(rootStackView)
         
@@ -211,7 +247,7 @@ class KeyboardViewController: UIInputViewController {
             rootStackView.topAnchor.constraint(equalTo: view.topAnchor, constant: 4),
             rootStackView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 4),
             rootStackView.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -4),
-            rootStackView.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -5)
+            rootStackView.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -4)
         ])
         
         // 1. Top Control Bar: Instant Bidirectional Translate + Franco Toggle
@@ -226,16 +262,16 @@ class KeyboardViewController: UIInputViewController {
         francoDigitsBar = createFrancoDigitsBar()
         rootStackView.addArrangedSubview(francoDigitsBar)
         
-        // 4. Main Keyboard Rows (Arabic Layout that outputs Franco)
+        // 4. Main Keyboard Rows
         keysContainerStack = UIStackView()
         keysContainerStack.axis = .vertical
-        keysContainerStack.spacing = 4
+        keysContainerStack.spacing = 3
         keysContainerStack.distribution = .fillEqually
         rootStackView.addArrangedSubview(keysContainerStack)
         
         renderCurrentLayout()
         
-        // 5. Bottom Navigation & Action Row (Globe | 123 | ? | / | Spacebar | . | Return)
+        // 5. Bottom Navigation & Action Row (Globe | 123 | عربي/EN | ? | / | Spacebar | Return)
         bottomRowStack = createBottomRow()
         rootStackView.addArrangedSubview(bottomRowStack)
     }
@@ -246,27 +282,27 @@ class KeyboardViewController: UIInputViewController {
         let stack = UIStackView()
         stack.axis = .horizontal
         stack.spacing = 6
-        stack.distribution = .fillProportionally
-        stack.heightAnchor.constraint(equalToConstant: 32).isActive = true
+        stack.distribution = .fill
+        stack.heightAnchor.constraint(equalToConstant: 30).isActive = true
         
         // 🔄 Instant Translate Button (عربي ⇄ فرانكو)
         let translateBtn = UIButton(type: .system)
         translateBtn.setTitle("🔄 ترجمة فورية", for: .normal)
         translateBtn.setTitleColor(.white, for: .normal)
-        translateBtn.titleLabel?.font = UIFont.boldSystemFont(ofSize: 12)
+        translateBtn.titleLabel?.font = UIFont.boldSystemFont(ofSize: 11)
         translateBtn.backgroundColor = UIColor(red: 16/255, green: 185/255, blue: 129/255, alpha: 0.9)
-        translateBtn.layer.cornerRadius = 7
+        translateBtn.layer.cornerRadius = 6
         translateBtn.addTarget(self, action: #selector(handleTranslateTapped), for: .touchUpInside)
-        translateBtn.widthAnchor.constraint(equalToConstant: 100).isActive = true
+        translateBtn.widthAnchor.constraint(equalToConstant: 105).isActive = true
         stack.addArrangedSubview(translateBtn)
         
         // Mode Title / Status Pill
         francoToggleBtn = UIButton(type: .system)
-        francoToggleBtn.setTitle("⚡ فرانكو عربي: مفعل", for: .normal)
+        francoToggleBtn.setTitle("⚡ تحويل فرانكو: مفعل", for: .normal)
         francoToggleBtn.setTitleColor(UIColor(red: 56/255, green: 189/255, blue: 248/255, alpha: 1.0), for: .normal)
-        francoToggleBtn.titleLabel?.font = UIFont.boldSystemFont(ofSize: 12)
+        francoToggleBtn.titleLabel?.font = UIFont.boldSystemFont(ofSize: 11)
         francoToggleBtn.backgroundColor = UIColor(white: 1.0, alpha: 0.08)
-        francoToggleBtn.layer.cornerRadius = 7
+        francoToggleBtn.layer.cornerRadius = 6
         francoToggleBtn.addTarget(self, action: #selector(toggleFrancoSmartMode), for: .touchUpInside)
         stack.addArrangedSubview(francoToggleBtn)
         
@@ -276,9 +312,9 @@ class KeyboardViewController: UIInputViewController {
     private func createSuggestionsBar() -> UIStackView {
         let stack = UIStackView()
         stack.axis = .horizontal
-        stack.spacing = 5
+        stack.spacing = 4
         stack.distribution = .fillEqually
-        stack.heightAnchor.constraint(equalToConstant: 30).isActive = true
+        stack.heightAnchor.constraint(equalToConstant: 28).isActive = true
         
         suggestionButtons = []
         let defaultSuggestions = ["ezayak", "3amel eh", "sa7by"]
@@ -287,9 +323,9 @@ class KeyboardViewController: UIInputViewController {
             let btn = UIButton(type: .system)
             btn.setTitle(text, for: .normal)
             btn.setTitleColor(UIColor(red: 224/255, green: 242/255, blue: 254/255, alpha: 1.0), for: .normal)
-            btn.titleLabel?.font = UIFont.systemFont(ofSize: 13, weight: .semibold)
-            btn.backgroundColor = UIColor(red: 35/255, green: 40/255, blue: 52/255, alpha: 1.0)
-            btn.layer.cornerRadius = 6
+            btn.titleLabel?.font = UIFont.systemFont(ofSize: 12, weight: .semibold)
+            btn.backgroundColor = UIColor(red: 30/255, green: 35/255, blue: 46/255, alpha: 1.0)
+            btn.layer.cornerRadius = 5
             btn.layer.borderWidth = 0.5
             btn.layer.borderColor = UIColor(white: 1.0, alpha: 0.12).cgColor
             btn.addTarget(self, action: #selector(suggestionTapped(_:)), for: .touchUpInside)
@@ -305,17 +341,17 @@ class KeyboardViewController: UIInputViewController {
         stack.axis = .horizontal
         stack.spacing = 3
         stack.distribution = .fillEqually
-        stack.heightAnchor.constraint(equalToConstant: 32).isActive = true
+        stack.heightAnchor.constraint(equalToConstant: 28).isActive = true
         
         for (digit, hint) in francoQuickKeys {
             let btn = UIButton(type: .system)
             let isSymbol = (digit == "?" || digit == "/")
             
-            btn.setTitle("\(digit)", for: .normal)
-            btn.setTitleColor(isSymbol ? UIColor(red: 251/255, green: 191/255, blue: 36/255, alpha: 1.0) : UIColor.white, for: .normal)
-            btn.titleLabel?.font = UIFont.boldSystemFont(ofSize: 14)
-            btn.backgroundColor = isSymbol ? UIColor(red: 251/255, green: 191/255, blue: 36/255, alpha: 0.14) : UIColor(white: 1.0, alpha: 0.08)
-            btn.layer.cornerRadius = 6
+            btn.setTitle(digit, for: .normal)
+            btn.setTitleColor(isSymbol ? UIColor(red: 251/255, green: 191/255, blue: 36/255, alpha: 1.0) : UIColor(red: 56/255, green: 189/255, blue: 248/255, alpha: 1.0), for: .normal)
+            btn.titleLabel?.font = UIFont.boldSystemFont(ofSize: 13)
+            btn.backgroundColor = isSymbol ? UIColor(red: 251/255, green: 191/255, blue: 36/255, alpha: 0.15) : UIColor(white: 1.0, alpha: 0.08)
+            btn.layer.cornerRadius = 5
             btn.layer.borderWidth = 0.5
             btn.layer.borderColor = UIColor(white: 1.0, alpha: 0.12).cgColor
             btn.accessibilityHint = hint
@@ -337,14 +373,16 @@ class KeyboardViewController: UIInputViewController {
         switch currentMode {
         case .arabic:
             renderArabicLayout()
+        case .francoEn:
+            renderFrancoEnLayout()
         case .symbols:
             renderSymbolsLayout()
         }
     }
 
     private func renderArabicLayout() {
-        keysContainerStack.addArrangedSubview(createKeyRow(items: arRow1))
-        keysContainerStack.addArrangedSubview(createKeyRow(items: arRow2))
+        keysContainerStack.addArrangedSubview(createKeyRowArabic(items: arRow1))
+        keysContainerStack.addArrangedSubview(createKeyRowArabic(items: arRow2))
         
         let row3Stack = UIStackView()
         row3Stack.axis = .horizontal
@@ -352,8 +390,31 @@ class KeyboardViewController: UIInputViewController {
         row3Stack.distribution = .fillProportionally
         
         for l in arRow3 {
-            let btn = createKeyButton(title: l)
+            let hint = arKeyHints[l]
+            let btn = createKeyButtonWithHint(main: l, hint: hint)
             btn.addTarget(self, action: #selector(letterPressed(_:)), for: .touchUpInside)
+            row3Stack.addArrangedSubview(btn)
+        }
+        
+        let backBtn = createSpecialButton(title: "⌫", width: 44)
+        backBtn.addTarget(self, action: #selector(backspacePressed), for: .touchUpInside)
+        row3Stack.addArrangedSubview(backBtn)
+        
+        keysContainerStack.addArrangedSubview(row3Stack)
+    }
+
+    private func renderFrancoEnLayout() {
+        keysContainerStack.addArrangedSubview(createKeyRowSimple(items: enRow1))
+        keysContainerStack.addArrangedSubview(createKeyRowSimple(items: enRow2))
+        
+        let row3Stack = UIStackView()
+        row3Stack.axis = .horizontal
+        row3Stack.spacing = 3
+        row3Stack.distribution = .fillProportionally
+        
+        for l in enRow3 {
+            let btn = createSimpleButton(title: l)
+            btn.addTarget(self, action: #selector(directLetterPressed(_:)), for: .touchUpInside)
             row3Stack.addArrangedSubview(btn)
         }
         
@@ -365,8 +426,8 @@ class KeyboardViewController: UIInputViewController {
     }
 
     private func renderSymbolsLayout() {
-        keysContainerStack.addArrangedSubview(createKeyRow(items: symRow1))
-        keysContainerStack.addArrangedSubview(createKeyRow(items: symRow2))
+        keysContainerStack.addArrangedSubview(createKeyRowSimple(items: symRow1))
+        keysContainerStack.addArrangedSubview(createKeyRowSimple(items: symRow2))
         
         let row3Stack = UIStackView()
         row3Stack.axis = .horizontal
@@ -374,7 +435,7 @@ class KeyboardViewController: UIInputViewController {
         row3Stack.distribution = .fillProportionally
         
         for sym in symRow3 {
-            let btn = createKeyButton(title: sym)
+            let btn = createSimpleButton(title: sym)
             btn.addTarget(self, action: #selector(digitPressed(_:)), for: .touchUpInside)
             row3Stack.addArrangedSubview(btn)
         }
@@ -386,94 +447,84 @@ class KeyboardViewController: UIInputViewController {
         keysContainerStack.addArrangedSubview(row3Stack)
     }
 
-    private func createKeyRow(items: [String]) -> UIStackView {
+    private func createKeyRowArabic(items: [String]) -> UIStackView {
         let stack = UIStackView()
         stack.axis = .horizontal
         stack.spacing = 3
         stack.distribution = .fillEqually
         for item in items {
-            let btn = createKeyButton(title: item)
+            let hint = arKeyHints[item]
+            let btn = createKeyButtonWithHint(main: item, hint: hint)
             btn.addTarget(self, action: #selector(letterPressed(_:)), for: .touchUpInside)
             stack.addArrangedSubview(btn)
         }
         return stack
     }
 
-    private func createBottomRow() -> UIStackView {
+    private func createKeyRowSimple(items: [String]) -> UIStackView {
         let stack = UIStackView()
         stack.axis = .horizontal
-        stack.spacing = 4
-        stack.distribution = .fillProportionally
-        stack.heightAnchor.constraint(equalToConstant: 42).isActive = true
-        
-        // 1. Globe Button (Apple iOS keyboard switcher)
-        let globeBtn = UIButton(type: .system)
-        globeBtn.setTitle("🌐", for: .normal)
-        globeBtn.titleLabel?.font = UIFont.systemFont(ofSize: 20)
-        globeBtn.backgroundColor = UIColor(white: 1.0, alpha: 0.12)
-        globeBtn.layer.cornerRadius = 7
-        globeBtn.addTarget(self, action: #selector(handleInputModeList(from:with:)), for: .allTouchEvents)
-        globeBtn.widthAnchor.constraint(equalToConstant: 40).isActive = true
-        stack.addArrangedSubview(globeBtn)
-        
-        // 2. Mode Switcher (123 / عربي)
-        modeSwitchBtn = UIButton(type: .system)
-        modeSwitchBtn.setTitle(currentMode == .arabic ? "123" : "عربي", for: .normal)
-        modeSwitchBtn.setTitleColor(.white, for: .normal)
-        modeSwitchBtn.titleLabel?.font = UIFont.boldSystemFont(ofSize: 12)
-        modeSwitchBtn.backgroundColor = UIColor(white: 1.0, alpha: 0.16)
-        modeSwitchBtn.layer.cornerRadius = 7
-        modeSwitchBtn.addTarget(self, action: #selector(toggleSymbolsMode), for: .touchUpInside)
-        modeSwitchBtn.widthAnchor.constraint(equalToConstant: 46).isActive = true
-        stack.addArrangedSubview(modeSwitchBtn)
-        
-        // 3. Quick '?' Key
-        let qBtn = createSpecialButton(title: "?", width: 34)
-        qBtn.setTitleColor(UIColor(red: 251/255, green: 191/255, blue: 36/255, alpha: 1.0), for: .normal)
-        qBtn.addTarget(self, action: #selector(digitPressed(_:)), for: .touchUpInside)
-        stack.addArrangedSubview(qBtn)
-        
-        // 4. Quick '/' Key
-        let sBtn = createSpecialButton(title: "/", width: 34)
-        sBtn.setTitleColor(UIColor(red: 251/255, green: 191/255, blue: 36/255, alpha: 1.0), for: .normal)
-        sBtn.addTarget(self, action: #selector(digitPressed(_:)), for: .touchUpInside)
-        stack.addArrangedSubview(sBtn)
-        
-        // 5. Wide Spacebar
-        let spaceBtn = UIButton(type: .system)
-        spaceBtn.setTitle("مسافة • Space (Franco)", for: .normal)
-        spaceBtn.setTitleColor(UIColor(white: 0.88, alpha: 1.0), for: .normal)
-        spaceBtn.titleLabel?.font = UIFont.systemFont(ofSize: 13, weight: .medium)
-        spaceBtn.backgroundColor = UIColor(white: 1.0, alpha: 0.12)
-        spaceBtn.layer.cornerRadius = 7
-        spaceBtn.addTarget(self, action: #selector(spacePressed), for: .touchUpInside)
-        stack.addArrangedSubview(spaceBtn)
-        
-        // 6. Quick '.' Key
-        let dotBtn = createSpecialButton(title: ".", width: 32)
-        dotBtn.addTarget(self, action: #selector(digitPressed(_:)), for: .touchUpInside)
-        stack.addArrangedSubview(dotBtn)
-        
-        // 7. Send / Return Key
-        let returnBtn = UIButton(type: .system)
-        returnBtn.setTitle("إرسال", for: .normal)
-        returnBtn.setTitleColor(.white, for: .normal)
-        returnBtn.titleLabel?.font = UIFont.boldSystemFont(ofSize: 13)
-        returnBtn.backgroundColor = UIColor(red: 2/255, green: 132/255, blue: 199/255, alpha: 1.0)
-        returnBtn.layer.cornerRadius = 7
-        returnBtn.addTarget(self, action: #selector(returnPressed), for: .touchUpInside)
-        returnBtn.widthAnchor.constraint(equalToConstant: 62).isActive = true
-        stack.addArrangedSubview(returnBtn)
-        
+        stack.spacing = 3
+        stack.distribution = .fillEqually
+        for item in items {
+            let btn = createSimpleButton(title: item)
+            btn.addTarget(self, action: #selector(directLetterPressed(_:)), for: .touchUpInside)
+            stack.addArrangedSubview(btn)
+        }
         return stack
     }
 
-    private func createKeyButton(title: String) -> UIButton {
+    // Professional Key with prominent Arabic letter + Franco subtitle in cyan
+    private func createKeyButtonWithHint(main: String, hint: String?) -> UIButton {
+        let btn = UIButton(type: .custom)
+        btn.setTitle(main, for: .normal)
+        btn.setTitleColor(.clear, for: .normal)
+        btn.accessibilityLabel = main
+        btn.backgroundColor = UIColor(red: 35/255, green: 40/255, blue: 52/255, alpha: 1.0)
+        btn.layer.cornerRadius = 6
+        btn.layer.borderWidth = 0.5
+        btn.layer.borderColor = UIColor(white: 1.0, alpha: 0.14).cgColor
+        
+        let container = UIStackView()
+        container.axis = .vertical
+        container.alignment = .center
+        container.distribution = .fillProportionally
+        container.spacing = 0
+        container.isUserInteractionEnabled = false
+        container.translatesAutoresizingMaskIntoConstraints = false
+        btn.addSubview(container)
+        
+        NSLayoutConstraint.activate([
+            container.centerXAnchor.constraint(equalTo: btn.centerXAnchor),
+            container.centerYAnchor.constraint(equalTo: btn.centerYAnchor),
+            container.leadingAnchor.constraint(greaterThanOrEqualTo: btn.leadingAnchor, constant: 1),
+            container.trailingAnchor.constraint(lessThanOrEqualTo: btn.trailingAnchor, constant: -1)
+        ])
+        
+        let arLabel = UILabel()
+        arLabel.text = main
+        arLabel.textColor = .white
+        arLabel.font = UIFont.systemFont(ofSize: 15, weight: .bold)
+        container.addArrangedSubview(arLabel)
+        
+        if let h = hint, !h.isEmpty {
+            let frLabel = UILabel()
+            frLabel.text = h
+            let isDigit = ["3", "7", "5", "2", "6", "9", "8"].contains(h)
+            frLabel.textColor = isDigit ? UIColor(red: 56/255, green: 189/255, blue: 248/255, alpha: 1.0) : UIColor(red: 148/255, green: 163/255, blue: 184/255, alpha: 1.0)
+            frLabel.font = UIFont.systemFont(ofSize: isDigit ? 10 : 8, weight: .black)
+            container.addArrangedSubview(frLabel)
+        }
+        
+        return btn
+    }
+
+    private func createSimpleButton(title: String) -> UIButton {
         let btn = UIButton(type: .system)
         btn.setTitle(title, for: .normal)
         btn.setTitleColor(.white, for: .normal)
-        btn.titleLabel?.font = UIFont.systemFont(ofSize: 17, weight: .medium)
-        btn.backgroundColor = UIColor(red: 46/255, green: 50/255, blue: 62/255, alpha: 1.0)
+        btn.titleLabel?.font = UIFont.systemFont(ofSize: 16, weight: .semibold)
+        btn.backgroundColor = UIColor(red: 35/255, green: 40/255, blue: 52/255, alpha: 1.0)
         btn.layer.cornerRadius = 6
         btn.layer.borderWidth = 0.5
         btn.layer.borderColor = UIColor(white: 1.0, alpha: 0.12).cgColor
@@ -484,11 +535,91 @@ class KeyboardViewController: UIInputViewController {
         let btn = UIButton(type: .system)
         btn.setTitle(title, for: .normal)
         btn.setTitleColor(.white, for: .normal)
-        btn.titleLabel?.font = UIFont.systemFont(ofSize: 15, weight: .semibold)
-        btn.backgroundColor = UIColor(red: 35/255, green: 38/255, blue: 48/255, alpha: 1.0)
+        btn.titleLabel?.font = UIFont.systemFont(ofSize: 14, weight: .semibold)
+        btn.backgroundColor = UIColor(red: 26/255, green: 30/255, blue: 40/255, alpha: 1.0)
         btn.layer.cornerRadius = 6
         btn.widthAnchor.constraint(equalToConstant: width).isActive = true
         return btn
+    }
+
+    private func createBottomRow() -> UIStackView {
+        let stack = UIStackView()
+        stack.axis = .horizontal
+        stack.spacing = 3
+        stack.distribution = .fillProportionally
+        stack.heightAnchor.constraint(equalToConstant: 38).isActive = true
+        
+        // 1. Globe Button (Apple iOS keyboard switcher)
+        let globeBtn = UIButton(type: .system)
+        globeBtn.setTitle("🌐", for: .normal)
+        globeBtn.titleLabel?.font = UIFont.systemFont(ofSize: 18)
+        globeBtn.backgroundColor = UIColor(white: 1.0, alpha: 0.10)
+        globeBtn.layer.cornerRadius = 6
+        globeBtn.addTarget(self, action: #selector(handleInputModeList(from:with:)), for: .allTouchEvents)
+        globeBtn.widthAnchor.constraint(equalToConstant: 36).isActive = true
+        stack.addArrangedSubview(globeBtn)
+        
+        // 2. Layout Mode Switcher (عربي ⇄ Franco EN)
+        langSwitchBtn = UIButton(type: .system)
+        langSwitchBtn.setTitle(currentMode == .francoEn ? "عربي" : "EN", for: .normal)
+        langSwitchBtn.setTitleColor(UIColor(red: 56/255, green: 189/255, blue: 248/255, alpha: 1.0), for: .normal)
+        langSwitchBtn.titleLabel?.font = UIFont.boldSystemFont(ofSize: 11)
+        langSwitchBtn.backgroundColor = UIColor(white: 1.0, alpha: 0.12)
+        langSwitchBtn.layer.cornerRadius = 6
+        langSwitchBtn.addTarget(self, action: #selector(toggleLanguageMode), for: .touchUpInside)
+        langSwitchBtn.widthAnchor.constraint(equalToConstant: 40).isActive = true
+        stack.addArrangedSubview(langSwitchBtn)
+        
+        // 3. Mode Switcher (123 / حروف)
+        modeSwitchBtn = UIButton(type: .system)
+        modeSwitchBtn.setTitle(currentMode == .symbols ? "حروف" : "123", for: .normal)
+        modeSwitchBtn.setTitleColor(.white, for: .normal)
+        modeSwitchBtn.titleLabel?.font = UIFont.boldSystemFont(ofSize: 11)
+        modeSwitchBtn.backgroundColor = UIColor(white: 1.0, alpha: 0.12)
+        modeSwitchBtn.layer.cornerRadius = 6
+        modeSwitchBtn.addTarget(self, action: #selector(toggleSymbolsMode), for: .touchUpInside)
+        modeSwitchBtn.widthAnchor.constraint(equalToConstant: 38).isActive = true
+        stack.addArrangedSubview(modeSwitchBtn)
+        
+        // 4. Quick '?' Key
+        let qBtn = createSpecialButton(title: "?", width: 30)
+        qBtn.setTitleColor(UIColor(red: 251/255, green: 191/255, blue: 36/255, alpha: 1.0), for: .normal)
+        qBtn.addTarget(self, action: #selector(digitPressed(_:)), for: .touchUpInside)
+        stack.addArrangedSubview(qBtn)
+        
+        // 5. Quick '/' Key
+        let sBtn = createSpecialButton(title: "/", width: 30)
+        sBtn.setTitleColor(UIColor(red: 251/255, green: 191/255, blue: 36/255, alpha: 1.0), for: .normal)
+        sBtn.addTarget(self, action: #selector(digitPressed(_:)), for: .touchUpInside)
+        stack.addArrangedSubview(sBtn)
+        
+        // 6. Wide Spacebar
+        let spaceBtn = UIButton(type: .system)
+        spaceBtn.setTitle("مسافة • Space (Franco ⚡)", for: .normal)
+        spaceBtn.setTitleColor(UIColor(white: 0.90, alpha: 1.0), for: .normal)
+        spaceBtn.titleLabel?.font = UIFont.systemFont(ofSize: 12, weight: .medium)
+        spaceBtn.backgroundColor = UIColor(white: 1.0, alpha: 0.10)
+        spaceBtn.layer.cornerRadius = 6
+        spaceBtn.addTarget(self, action: #selector(spacePressed), for: .touchUpInside)
+        stack.addArrangedSubview(spaceBtn)
+        
+        // 7. Quick '.' Key
+        let dotBtn = createSpecialButton(title: ".", width: 28)
+        dotBtn.addTarget(self, action: #selector(digitPressed(_:)), for: .touchUpInside)
+        stack.addArrangedSubview(dotBtn)
+        
+        // 8. Send / Return Key
+        let returnBtn = UIButton(type: .system)
+        returnBtn.setTitle("إرسال", for: .normal)
+        returnBtn.setTitleColor(.white, for: .normal)
+        returnBtn.titleLabel?.font = UIFont.boldSystemFont(ofSize: 12)
+        returnBtn.backgroundColor = UIColor(red: 2/255, green: 132/255, blue: 199/255, alpha: 1.0)
+        returnBtn.layer.cornerRadius = 6
+        returnBtn.addTarget(self, action: #selector(returnPressed), for: .touchUpInside)
+        returnBtn.widthAnchor.constraint(equalToConstant: 54).isActive = true
+        stack.addArrangedSubview(returnBtn)
+        
+        return stack
     }
 
     // MARK: - Smart Suggestions Engine
@@ -545,7 +676,8 @@ class KeyboardViewController: UIInputViewController {
 
     @objc private func letterPressed(_ sender: UIButton) {
         feedbackGenerator.impactOccurred()
-        guard let title = sender.currentTitle else { return }
+        let title = sender.accessibilityLabel ?? sender.currentTitle ?? ""
+        guard !title.isEmpty else { return }
         
         if isFrancoAutoConvert {
             currentWordBuffer.append(title)
@@ -560,6 +692,14 @@ class KeyboardViewController: UIInputViewController {
             currentWordBuffer.append(title)
             updateSuggestions(for: currentWordBuffer)
         }
+    }
+
+    @objc private func directLetterPressed(_ sender: UIButton) {
+        feedbackGenerator.impactOccurred()
+        guard let title = sender.currentTitle else { return }
+        textDocumentProxy.insertText(title)
+        currentWordBuffer.append(title)
+        updateSuggestions(for: currentWordBuffer)
     }
 
     @objc private func digitPressed(_ sender: UIButton) {
@@ -607,65 +747,88 @@ class KeyboardViewController: UIInputViewController {
 
     @objc private func toggleSymbolsMode() {
         feedbackGenerator.impactOccurred()
-        currentMode = (currentMode == .arabic) ? .symbols : .arabic
-        modeSwitchBtn.setTitle(currentMode == .arabic ? "123" : "عربي", for: .normal)
+        if currentMode == .symbols {
+            currentMode = .arabic
+        } else {
+            currentMode = .symbols
+        }
+        updateModeButtons()
         renderCurrentLayout()
+    }
+
+    @objc private func toggleLanguageMode() {
+        feedbackGenerator.impactOccurred()
+        if currentMode == .francoEn {
+            currentMode = .arabic
+        } else {
+            currentMode = .francoEn
+        }
+        updateModeButtons()
+        renderCurrentLayout()
+    }
+
+    private func updateModeButtons() {
+        langSwitchBtn?.setTitle(currentMode == .francoEn ? "عربي" : "EN", for: .normal)
+        modeSwitchBtn?.setTitle(currentMode == .symbols ? "حروف" : "123", for: .normal)
     }
 
     @objc private func toggleFrancoSmartMode() {
         feedbackGenerator.impactOccurred()
         isFrancoAutoConvert.toggle()
         if isFrancoAutoConvert {
-            francoToggleBtn.setTitle("⚡ فرانكو عربي: مفعل", for: .normal)
+            francoToggleBtn.setTitle("⚡ تحويل فرانكو: مفعل", for: .normal)
             francoToggleBtn.setTitleColor(UIColor(red: 56/255, green: 189/255, blue: 248/255, alpha: 1.0), for: .normal)
         } else {
-            francoToggleBtn.setTitle("عربي عادي", for: .normal)
-            francoToggleBtn.setTitleColor(UIColor.lightGray, for: .normal)
+            francoToggleBtn.setTitle("📝 كتابة عربي أصلية", for: .normal)
+            francoToggleBtn.setTitleColor(UIColor(red: 251/255, green: 191/255, blue: 36/255, alpha: 1.0), for: .normal)
         }
     }
-
-    // MARK: - 🔄 Full Bidirectional Translation (One-Tap in WhatsApp)
 
     @objc private func handleTranslateTapped() {
         feedbackGenerator.impactOccurred()
-        guard let context = textDocumentProxy.documentContextBeforeInput, !context.isEmpty else {
+        
+        guard let proxy = textDocumentProxy as? UITextDocumentProxy else { return }
+        
+        let beforeContext = proxy.documentContextBeforeInput ?? ""
+        let trimmed = beforeContext.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        if trimmed.isEmpty {
+            textDocumentProxy.insertText("ezayak 3amel eh ya sa7by")
             return
         }
-
+        
+        let isArabic = trimmed.range(of: "\\p{Arabic}", options: .regularExpression) != nil
         let translated: String
-        if hasArabicLetters(context) {
-            translated = translateFullArabicToFranco(context)
+        
+        if isArabic {
+            translated = translateFullArabicToFranco(trimmed)
         } else {
-            translated = translateFullFrancoToArabic(context)
+            translated = translateFullFrancoToArabic(trimmed)
         }
-
-        for _ in 0..<context.count {
-            textDocumentProxy.deleteBackward()
+        
+        for _ in 0..<beforeContext.count {
+            proxy.deleteBackward()
         }
-        textDocumentProxy.insertText(translated)
+        
+        proxy.insertText(translated)
         currentWordBuffer = ""
+        updateSuggestions(for: "")
     }
 
-    private func hasArabicLetters(_ text: String) -> Bool {
-        for scalar in text.unicodeScalars {
-            if (0x0600...0x06FF).contains(scalar.value) || (0x0750...0x077F).contains(scalar.value) {
-                return true
-            }
-        }
-        return false
-    }
+    // MARK: - Translation Algorithms
 
     private func translateFullArabicToFranco(_ text: String) -> String {
         var result = text
         for (ar, fr) in francoDictionary {
             result = result.replacingOccurrences(of: ar, with: fr)
         }
-        var output = ""
+        
+        var phoneticResult = ""
         for char in result {
             let str = String(char)
-            output += arToFrCharMap[str] ?? str
+            phoneticResult += arToFrCharMap[str] ?? str
         }
-        return output
+        return phoneticResult
     }
 
     private func translateFullFrancoToArabic(_ text: String) -> String {
